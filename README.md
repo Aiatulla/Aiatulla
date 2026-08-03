@@ -4,5 +4,5 @@
 
 <div align="center">
   <img src="./pulse.svg" width="740" alt="AIATULLA">
-  <img src="./terminal.svg" width="840" alt="whoami">
+  <!-- <img src="./terminal.svg" width="840" alt="whoami"> -->
 </div>
