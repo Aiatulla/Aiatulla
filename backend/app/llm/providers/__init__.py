@@ -28,7 +28,10 @@ _KEY_PREFIXES: tuple[tuple[str, Provider], ...] = (
 
 DEFAULT_MODELS: dict[Provider, str] = {
     Provider.ANTHROPIC: "claude-sonnet-5",
-    Provider.GEMINI: "gemini-2.0-flash",
+    # An alias, not a pinned version: pinned Gemini names are listed by the API
+    # but 404 on a free-tier key, and a default that fails for anyone without a
+    # paid account is not a default.
+    Provider.GEMINI: "gemini-flash-latest",
     Provider.OPENAI: "gpt-4o-mini",
 }
 

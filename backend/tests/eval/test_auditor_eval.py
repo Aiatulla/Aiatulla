@@ -21,7 +21,7 @@ from app.llm.cassette import CassetteClient, CassetteMissError, CassetteMode
 BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
 CASSETTE_DIR = BACKEND_ROOT / "tests" / "cassettes"
 FIXTURE_DIR = BACKEND_ROOT / "tests" / "fixtures"
-MODEL = "gemini-2.0-flash"
+MODEL = "gemini-flash-latest"
 
 # Committed thresholds, per auditor and fixture. Lowering one needs a reason in
 # the commit message: this number is what says whether an edit made it worse.
