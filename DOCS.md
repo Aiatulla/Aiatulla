@@ -16,7 +16,7 @@ Audience: developers and hiring teams who want a repeatable read on a repository
 - Submit a public Git repository for audit
 - Parallel specialised auditors (dead code, security, test quality) sharing one run
 - Findings returned through tool schemas as typed objects, never parsed from prose
-- Per-run token and cost budget with a hard cap and early abort
+- Per-run cost ceiling, checked before each call rather than after, so concurrent auditors cannot all slip through
 - Evaluation harness: golden fixture repositories with planted defects, precision and recall asserted in CI
 - Record and replay cassettes so agent tests run offline, free, and deterministic
 - Live run progress over WebSocket
@@ -45,13 +45,24 @@ frontend/src/lib/               api client, shared helpers
 frontend/src/types/             types mirroring backend response schemas
 
 backend/app/routers/            FastAPI route handlers (thin: no business logic)
-backend/app/services/           business logic
-backend/app/repositories/       database query layer
-backend/app/models/             SQLAlchemy ORM models
 backend/app/schemas/            Pydantic request and response schemas
-backend/app/auditors/           one module per auditor: prompt, tool schema, fixtures
-backend/app/llm/                provider-agnostic client and cassette layer
-backend/tests/                  tests, fixtures, cassettes
+backend/app/auditors/           one module per auditor: prompt and tool description
+backend/app/llm/                provider-agnostic client, cassettes, cost accounting
+backend/app/orchestrator.py     fans auditors out, merges outcomes
+backend/app/budget.py           per-run spending ceiling
+backend/app/cloner.py           safe clone of an untrusted repository URL
+backend/app/evaluation.py       precision and recall against golden fixtures
+backend/tests/fixtures/         fixture repositories with planted defects
+backend/tests/cassettes/        recorded model replies (generated, not hand written)
+backend/tests/eval/             the regression gate for prompt changes
+
+Not created yet, deliberately. Each arrives with the phase that needs it, so
+nothing sits in the tree unwired:
+
+backend/app/services/           business logic                        (Phase 4)
+backend/app/repositories/       database query layer                  (Phase 4)
+backend/app/models/             SQLAlchemy ORM models                 (Phase 4)
+backend/alembic/                migrations                            (Phase 4)
 ```
 
 ## API Base URL
@@ -73,6 +84,9 @@ Every variable has a development default, so a fresh clone runs without configur
 | `DEBUG` | backend | Echoes SQL when true. Off in production. |
 | `ALLOWED_ORIGINS` | backend | CORS allowlist. |
 | `NEXT_PUBLIC_API_URL` | frontend | Backend base URL. Goes in `frontend/.env.local`. |
+| `LLM_MODEL` | backend | Model to call, and part of the cassette key. |
+| `LLM_CASSETTE_MODE` | backend | `replay` (default, no key needed) or `record`. |
+| `GEMINI_API_KEY` | backend | Only needed to record cassettes. |
 
 No model API key is stored server side.
 Keys arrive per session through the bring your own key path in Phase 4.
@@ -115,4 +129,21 @@ They open no sockets and need no database, which is why CI runs them without a P
 ## Build Order
 
 See `secure/ROADMAP.md` for the eight phases, the files each produces, and the condition that proves each is finished.
-Phase 0 is complete.
+
+| Phase | State | Note |
+| --- | --- | --- |
+| 0 Foundation | done | Both sides build and test on a clean clone. |
+| 1 LLM client and cassettes | done | Replay is the default, so no key is needed to run anything. |
+| 2 First auditor | **machinery done, not measured** | The evaluation skips until cassettes are recorded. |
+| 3 Orchestrator and budget | **machinery done, not measured** | Same reason. Three auditors, concurrent, one shared ceiling. |
+| 4 API and BYOK | next | |
+
+Phases 2 and 3 are not finished until this runs and the evaluations stop skipping:
+
+```bash
+cd backend
+GEMINI_API_KEY=... .venv/bin/python scripts/record_cassettes.py
+.venv/bin/pytest tests/eval -v
+```
+
+Six calls on a free tier. Until then the auditors' prompts are unmeasured: everything around the model is tested, the model's own detection quality is not.

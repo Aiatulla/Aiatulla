@@ -19,6 +19,8 @@ sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.auditors.base import Auditor  # noqa: E402
 from app.auditors.dead_code import DeadCodeAuditor  # noqa: E402
+from app.auditors.security import SecurityAuditor  # noqa: E402
+from app.auditors.test_quality import TestQualityAuditor  # noqa: E402
 from app.llm.cassette import CassetteClient, CassetteMode  # noqa: E402
 from app.llm.providers.gemini import GeminiClient  # noqa: E402
 
@@ -26,8 +28,8 @@ MODEL = "gemini-2.0-flash"
 CASSETTE_DIR = BACKEND_ROOT / "tests" / "cassettes"
 FIXTURE_DIR = BACKEND_ROOT / "tests" / "fixtures"
 
-AUDITORS: list[Auditor] = [DeadCodeAuditor()]
-FIXTURES = ["repo_a"]
+AUDITORS: list[Auditor] = [DeadCodeAuditor(), SecurityAuditor(), TestQualityAuditor()]
+FIXTURES = ["repo_a", "repo_b"]
 
 
 async def main() -> int:

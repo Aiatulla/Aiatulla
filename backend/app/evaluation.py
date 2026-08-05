@@ -61,12 +61,20 @@ class EvalResult:
         )
 
 
-def load_expected(golden_path: Path) -> list[ExpectedFinding]:
-    """Read the planted defects for a fixture repository."""
+def load_expected(golden_path: Path, auditor: str) -> list[ExpectedFinding]:
+    """Read the defects planted for one auditor in a fixture repository.
+
+    Expectations are keyed by auditor because a fixture usually carries defects
+    for several of them, and each must be scored only on the ones it owns.
+
+    An auditor with no entry expects nothing. That is a real case worth
+    supporting: it asserts the auditor stays quiet on a repository that has
+    nothing for it, which is how false positives get caught.
+    """
     raw = json.loads(golden_path.read_text())
     return [
         ExpectedFinding(category=item["category"], file_path=item["file_path"])
-        for item in raw["expected_findings"]
+        for item in raw["expected_findings"].get(auditor, [])
     ]
 
 

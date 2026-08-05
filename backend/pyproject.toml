@@ -53,9 +53,12 @@ disallow_untyped_defs = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-# A skipped evaluation is not a passing evaluation. This makes the reason visible
-# in the CI log instead of a bare "s" in the progress line.
-addopts = "-ra"
+# -ra: a skipped evaluation is not a passing evaluation, so the reason shows in
+#   the CI log instead of a bare "s" in the progress line.
+# --ignore: fixture repositories contain files named test_*.py on purpose. They
+#   are input data for the auditors, not tests of this project, and collecting
+#   them would run deliberately broken code.
+addopts = "-ra --ignore=tests/fixtures"
 
 [tool.ruff.lint.per-file-ignores]
 # Fixture repositories contain deliberately bad code. Linting them would fight
