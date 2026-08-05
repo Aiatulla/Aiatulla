@@ -16,7 +16,7 @@ Audience: developers and hiring teams who want a repeatable read on a repository
 - Submit a public Git repository for audit
 - Parallel specialised auditors (dead code, security, test quality) sharing one run
 - Findings returned through tool schemas as typed objects, never parsed from prose
-- Per-run token and cost budget with a hard cap and early abort
+- Per-run cost ceiling, checked before each call rather than after, so concurrent auditors cannot all slip through
 - Evaluation harness: golden fixture repositories with planted defects, precision and recall asserted in CI
 - Record and replay cassettes so agent tests run offline, free, and deterministic
 - Live run progress over WebSocket

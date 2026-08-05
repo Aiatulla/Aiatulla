@@ -125,23 +125,40 @@ async def test_one_failing_auditor_does_not_lose_the_others_work():
     assert "could not parse" in (failed.error or ""), "the reason must survive as readable text"
 
 
-async def test_a_tiny_budget_truncates_the_run():
+async def test_a_run_that_overspends_is_truncated():
     """A run that ran out of money must say so, not look like a clean result.
 
-    Each auditor makes two calls. The first wave is admitted, because concurrent
-    callers are all checked before any of them has reported a cost. That wave
-    blows the ceiling, so the second wave is refused and the run is truncated.
+    Each auditor makes two calls. The first round is cheap to estimate and is
+    admitted, but the replies cost far more than estimated, so the second round
+    is refused once the actual spending is known.
     """
     auditors = [FakeAuditor(f"auditor_{index}", calls=2) for index in range(3)]
-    client = SlowClient(delay=0.0, cost_tokens=1_000_000)  # $0.10 per call
+    client = SlowClient(delay=0.0, cost_tokens=1_000_000)  # $0.10 per reply
 
     result = await run_audit(client, FIXTURE, auditors, max_usd=Decimal("0.05"))
 
     assert result.truncated
-    assert client.calls == 3, "the second wave must never reach the provider"
+    assert client.calls == 3, "the second round must never reach the provider"
 
     over_budget = [o for o in result.outcomes if o.status is AuditorStatus.OVER_BUDGET]
     assert len(over_budget) == 3, "every auditor should have been stopped mid-run"
+
+
+async def test_a_ceiling_smaller_than_one_call_stops_every_auditor():
+    """The case reservations exist for: nothing may reach the provider at all.
+
+    Before calls were priced up front, all three auditors were admitted
+    concurrently and the run finished well past its ceiling while reporting
+    itself as clean.
+    """
+    auditors = [FakeAuditor(f"auditor_{index}") for index in range(3)]
+    client = SlowClient(delay=0.0)
+
+    result = await run_audit(client, FIXTURE, auditors, max_usd=Decimal("0.0000001"))
+
+    assert result.truncated
+    assert client.calls == 0, "not one call may be made when none of them fits"
+    assert all(o.status is AuditorStatus.OVER_BUDGET for o in result.outcomes)
 
 
 async def test_usage_totals_every_auditor():

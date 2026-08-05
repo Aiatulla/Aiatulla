@@ -3,18 +3,27 @@ from decimal import Decimal
 
 import pytest
 
-from app.budget import BudgetExceededError, BudgetGuard
-from app.llm.protocol import Message, Response
+from app.budget import (
+    ASSUMED_OUTPUT_TOKENS,
+    BudgetExceededError,
+    BudgetGuard,
+    estimate_prompt_tokens,
+)
+from app.llm.protocol import Message, Response, Tool
 from app.llm.usage import build_usage
 
 MODEL = "gemini-2.0-flash"
-MESSAGES = [Message(role="user", content="hello")]
+
+# 4000 characters is 1000 estimated input tokens, which at $0.10 per million plus
+# the assumed 4000 output tokens at $0.40 per million reserves $0.0017 per call.
+MESSAGES = [Message(role="user", content="x" * 4_000)]
+RESERVATION_PER_CALL = Decimal("0.0017")
 
 
 class CountingClient:
     """Charges a fixed amount per call and counts how many it served."""
 
-    def __init__(self, input_tokens: int = 1_000_000, output_tokens: int = 0) -> None:
+    def __init__(self, input_tokens: int = 1_000, output_tokens: int = 100) -> None:
         self.calls = 0
         self._input_tokens = input_tokens
         self._output_tokens = output_tokens
@@ -31,79 +40,115 @@ class CountingClient:
         )
 
 
+def test_estimate_counts_the_prompt():
+    tokens = estimate_prompt_tokens([Message(role="user", content="x" * 400)], None, None)
+
+    assert tokens == 100
+
+
+def test_estimate_counts_the_system_prompt_and_tool_schemas():
+    """A large tool schema is sent on every call and is not free."""
+    tool = Tool(name="report", description="d" * 100, parameters={"type": "object"})
+
+    bare = estimate_prompt_tokens([Message(role="user", content="x" * 400)], None, None)
+    full = estimate_prompt_tokens([Message(role="user", content="x" * 400)], [tool], "s" * 200)
+
+    assert full > bare
+
+
 async def test_calls_within_budget_go_through():
-    # $0.10 per call at 1M input tokens.
     inner = CountingClient()
-    guard = BudgetGuard(inner, max_usd=Decimal("1.00"))
+    guard = BudgetGuard(inner, model=MODEL, max_usd=Decimal("1.00"))
 
     await guard.complete(MESSAGES)
 
     assert inner.calls == 1
-    assert guard.spent.cost_usd == Decimal("0.10")
+    assert guard.spent.cost_usd > 0
 
 
 async def test_spending_accumulates_across_calls():
-    guard = BudgetGuard(CountingClient(), max_usd=Decimal("1.00"))
+    guard = BudgetGuard(CountingClient(), model=MODEL, max_usd=Decimal("1.00"))
 
     for _ in range(3):
         await guard.complete(MESSAGES)
 
-    assert guard.spent.cost_usd == Decimal("0.30")
-    assert guard.spent.input_tokens == 3_000_000
+    assert guard.spent.input_tokens == 3_000
 
 
-async def test_call_is_refused_once_the_ceiling_is_reached():
-    """The whole point: a run cannot keep spending after its allowance is gone."""
+async def test_a_call_that_would_breach_the_ceiling_is_refused():
+    """The reservation is checked before the call, so nothing is spent to learn this."""
     inner = CountingClient()
-    guard = BudgetGuard(inner, max_usd=Decimal("0.05"))
+    guard = BudgetGuard(inner, model=MODEL, max_usd=RESERVATION_PER_CALL / 2)
 
-    await guard.complete(MESSAGES)  # spends 0.10, which is already past 0.05
-
-    with pytest.raises(BudgetExceededError, match=r"0\.05"):
+    with pytest.raises(BudgetExceededError, match="would exceed"):
         await guard.complete(MESSAGES)
 
-    assert inner.calls == 1, "the refused call must never reach the provider"
+    assert inner.calls == 0, "the refused call must never reach the provider"
 
 
-async def test_a_call_is_admitted_while_budget_remains():
-    """The check is on money already spent, not on what a call might cost."""
-    inner = CountingClient()
-    guard = BudgetGuard(inner, max_usd=Decimal("0.15"))
+async def test_concurrent_calls_cannot_all_slip_through():
+    """The reason reservations exist.
 
-    await guard.complete(MESSAGES)  # 0.10 spent, still below 0.15
-    await guard.complete(MESSAGES)  # admitted, takes the total to 0.20
-
-    assert inner.calls == 2
-    assert guard.spent.cost_usd == Decimal("0.20")
-
-
-async def test_concurrent_calls_overshoot_by_one_call_each():
-    """Documented limit, pinned down so it cannot drift unnoticed.
-
-    Calls already in flight were all admitted before any recorded a cost, so a
-    ceiling can be passed by one call per concurrent caller.
+    Checking only money already spent would admit every concurrent caller, since
+    none of them has reported a cost yet. Reserving up front is what stops that.
     """
     inner = CountingClient()
-    guard = BudgetGuard(inner, max_usd=Decimal("0.05"))
+    # Room for one reservation, not three.
+    guard = BudgetGuard(inner, model=MODEL, max_usd=RESERVATION_PER_CALL * Decimal("1.5"))
 
-    await asyncio.gather(*(guard.complete(MESSAGES) for _ in range(3)))
+    results = await asyncio.gather(
+        *(guard.complete(MESSAGES) for _ in range(3)), return_exceptions=True
+    )
 
-    assert inner.calls == 3, "all three were admitted before any had reported spending"
-    assert guard.spent.cost_usd == Decimal("0.30")
+    admitted = [r for r in results if not isinstance(r, Exception)]
+    refused = [r for r in results if isinstance(r, BudgetExceededError)]
 
-    # The next wave is refused, which is the guarantee that actually holds.
-    with pytest.raises(BudgetExceededError):
+    assert len(admitted) == 1, "only one call fits the ceiling"
+    assert len(refused) == 2
+    assert inner.calls == 1, "refused calls must never reach the provider"
+
+
+async def test_a_reservation_is_released_after_the_call():
+    """Otherwise a long run would strangle itself as reservations piled up."""
+    guard = BudgetGuard(CountingClient(), model=MODEL, max_usd=Decimal("1.00"))
+
+    for _ in range(5):
         await guard.complete(MESSAGES)
 
+    # Five small calls against a large ceiling must all succeed.
+    assert guard.spent.input_tokens == 5_000
 
-async def test_remaining_never_goes_negative():
-    guard = BudgetGuard(CountingClient(), max_usd=Decimal("0.05"))
+
+async def test_a_reservation_is_released_when_the_call_fails():
+    """One provider error must not shrink the budget for everything after it."""
+
+    class FailingClient:
+        async def complete(self, messages, tools=None, system=None):
+            await asyncio.sleep(0)
+            raise RuntimeError("provider is down")
+
+    guard = BudgetGuard(FailingClient(), model=MODEL, max_usd=Decimal("1.00"))
+
+    with pytest.raises(RuntimeError, match="provider is down"):
+        await guard.complete(MESSAGES)
+
+    assert guard.remaining_usd == Decimal("1.00"), "the reservation should have been released"
+
+
+async def test_remaining_accounts_for_spending():
+    guard = BudgetGuard(CountingClient(), model=MODEL, max_usd=Decimal("1.00"))
 
     await guard.complete(MESSAGES)
 
-    assert guard.remaining_usd == Decimal(0)
+    assert guard.remaining_usd < Decimal("1.00")
+    assert guard.remaining_usd > Decimal("0.99")
+
+
+def test_assumed_output_is_generous_rather_than_optimistic():
+    """Under-reserving lets a run past its ceiling. Over-reserving only stops it early."""
+    assert ASSUMED_OUTPUT_TOKENS >= 1_000
 
 
 def test_a_ceiling_must_be_positive():
     with pytest.raises(ValueError, match="positive"):
-        BudgetGuard(CountingClient(), max_usd=Decimal(0))
+        BudgetGuard(CountingClient(), model=MODEL, max_usd=Decimal(0))

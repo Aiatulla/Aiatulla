@@ -57,6 +57,7 @@ async def run_audit(
     repository: Path,
     auditors: list[Auditor],
     max_usd: Decimal,
+    model: str = "gemini-2.0-flash",
 ) -> RunResult:
     """Run every auditor over one repository and merge what they find.
 
@@ -66,7 +67,7 @@ async def run_audit(
     is more useful than nothing at all, and a single unparseable model reply
     should not discard the work the others already did.
     """
-    guard = BudgetGuard(client, max_usd=max_usd)
+    guard = BudgetGuard(client, model=model, max_usd=max_usd)
 
     outcomes = await asyncio.gather(*(_run_one(guard, repository, auditor) for auditor in auditors))
 
