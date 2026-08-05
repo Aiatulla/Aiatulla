@@ -41,6 +41,22 @@ const config: Config = {
         tertiary: "var(--color-ink-tertiary)",
       },
       success: "var(--color-success)",
+
+      // Product layer, added in Phase 6. See globals.css for why these exist
+      // separately from the brand accent.
+      severity: {
+        critical: "var(--color-severity-critical)",
+        high: "var(--color-severity-high)",
+        medium: "var(--color-severity-medium)",
+        low: "var(--color-severity-low)",
+        info: "var(--color-severity-info)",
+      },
+      change: {
+        new: "var(--color-change-new)",
+        fixed: "var(--color-change-fixed)",
+        persisting: "var(--color-change-persisting)",
+      },
+      "row-hover": "var(--color-table-row-hover)",
     },
 
     // The DESIGN.md type scale. Each entry is [size, { lineHeight, letterSpacing }],
