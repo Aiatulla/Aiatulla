@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens from DESIGN.md (Linear marketing system).
+ *
+ * Every value here is the single source of truth for colour. Components must
+ * reference the Tailwind classes that map to these variables, never a raw hex.
+ * See rules/RULES_FRONTEND.md.
+ *
+ * Dark only. The source system does not ship a light theme, so we do not fake one.
+ */
+:root {
+  /* Brand accent. Used scarcely: primary button, focus ring, link emphasis. */
+  --color-primary: #5e6ad2;
+  --color-primary-hover: #828fff;
+  --color-primary-focus: #5e69d1;
+  --color-on-primary: #ffffff;
+
+  /*
+   * Surface ladder: canvas is the page, each step lifts a level.
+   * Depth comes from these steps plus a hairline border, never a drop shadow.
+   *
+   * TODO(phase-6): canvas and the hairlines are documented values. surface-1
+   * through surface-4 were not published in DESIGN.md, so these are provisional
+   * steps between canvas and hairline. Confirm against Linear's real
+   * --color-bg-level-* variables before building the findings table.
+   */
+  --color-canvas: #010102;
+  --color-surface-1: #08090a;
+  --color-surface-2: #0f1011;
+  --color-surface-3: #16171a;
+  --color-surface-4: #1c1d20;
+
+  --color-hairline: #23252a;
+  --color-hairline-strong: #2f3136;
+  --color-hairline-tertiary: #191a1d;
+
+  /*
+   * Text ladder, brightest to dimmest.
+   * ink-tertiary measures 3.6:1 against canvas, which fails WCAG AA for normal
+   * text. Use it only at 18px and above, never for table body or captions.
+   */
+  --color-ink: #f7f8f8;
+  --color-ink-muted: #d0d6e0;
+  --color-ink-subtle: #8a8f98;
+  --color-ink-tertiary: #62666d;
+
+  /*
+   * The marketing system ships one semantic colour. The severity and diff-state
+   * palette that the findings table needs is added in Phase 6, from Linear's
+   * in-product priority colours.
+   */
+  --color-success: #27a644;
+  --color-overlay: rgba(0, 0, 0, 0.8);
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  /* -0.05px tracking on body, per the DESIGN.md type scale. */
+  letter-spacing: -0.05px;
+}
