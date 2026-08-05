@@ -82,10 +82,28 @@ def test_summary_names_what_went_wrong():
     assert "b.py" in summary
 
 
-def test_load_expected_reads_golden_file(tmp_path):
+def test_load_expected_reads_only_its_own_auditors_defects(tmp_path):
+    """A fixture carries defects for several auditors; each is scored on its own."""
     golden = tmp_path / "golden.json"
     golden.write_text(
-        json.dumps({"expected_findings": [{"category": "unused_module", "file_path": "x.py"}]})
+        json.dumps(
+            {
+                "expected_findings": {
+                    "dead_code": [{"category": "unused_module", "file_path": "x.py"}],
+                    "security": [{"category": "hardcoded_credential", "file_path": "c.py"}],
+                }
+            }
+        )
     )
 
-    assert load_expected(golden) == [ExpectedFinding("unused_module", "x.py")]
+    assert load_expected(golden, "dead_code") == [ExpectedFinding("unused_module", "x.py")]
+    assert load_expected(golden, "security") == [ExpectedFinding("hardcoded_credential", "c.py")]
+
+
+def test_auditor_with_no_planted_defects_expects_nothing(tmp_path):
+    """A real case: it asserts the auditor stays quiet where it should, which is
+    how false positives get caught."""
+    golden = tmp_path / "golden.json"
+    golden.write_text(json.dumps({"expected_findings": {"dead_code": []}}))
+
+    assert load_expected(golden, "test_quality") == []
