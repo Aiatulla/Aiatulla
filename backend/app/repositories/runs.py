@@ -40,6 +40,36 @@ class RunRepository:
     async def get(self, run_id: uuid.UUID) -> Run | None:
         return await self._session.get(Run, run_id)
 
+    async def list_for_repository(self, slug: str, limit: int = 50) -> list[Run]:
+        """Every run of one repository, newest first."""
+        result = await self._session.execute(
+            select(Run)
+            .where(Run.repository_slug == slug)
+            .order_by(Run.created_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def find_previous_completed(self, run: Run) -> Run | None:
+        """The last completed run of the same repository before this one.
+
+        Only completed runs count as a baseline. Diffing against a failed run
+        would report every finding as new, since a failed run has none, and
+        would make a real regression indistinguishable from a broken predecessor.
+        """
+        result = await self._session.execute(
+            select(Run)
+            .where(
+                Run.repository_slug == run.repository_slug,
+                Run.status == RunStatus.COMPLETED,
+                Run.created_at < run.created_at,
+                Run.id != run.id,
+            )
+            .order_by(Run.created_at.desc())
+            .limit(1)
+        )
+        return result.scalars().first()
+
     async def list_recent(self, limit: int = 50) -> list[Run]:
         result = await self._session.execute(
             select(Run).order_by(Run.created_at.desc()).limit(limit)

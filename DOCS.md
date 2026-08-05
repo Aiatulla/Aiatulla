@@ -136,7 +136,14 @@ See `secure/ROADMAP.md` for the eight phases, the files each produces, and the c
 | 1 LLM client and cassettes | done | Replay is the default, so no key is needed to run anything. |
 | 2 First auditor | **machinery done, not measured** | The evaluation skips until cassettes are recorded. |
 | 3 Orchestrator and budget | **machinery done, not measured** | Same reason. Three auditors, concurrent, one shared ceiling. |
-| 4 API and BYOK | next | |
+| 4 API and BYOK | done | Runs execute in the background; the caller's own key, never stored. |
+| 5 History and diff | done | A run is compared against the previous completed run of the same repository. |
+| 6 Frontend | next | |
+
+**Redis checkpoint, decided at Phase 5: still not needed.** Background work runs
+through FastAPI BackgroundTasks and run state lives in Postgres.
+Nothing so far has needed a job queue or a shared cache.
+Revisit when concurrent runs measurably outgrow a single process, and add `arq` then, with the measurement that justified it.
 
 Phases 2 and 3 are not finished until this runs and the evaluations stop skipping:
 
