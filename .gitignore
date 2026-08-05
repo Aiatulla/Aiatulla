@@ -16,10 +16,13 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+*.egg-info/
 
 # Node
 node_modules/
 .next/
+next-env.d.ts
+tsconfig.tsbuildinfo
 
 # macOS
 .DS_Store

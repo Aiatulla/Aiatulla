@@ -1,0 +1,24 @@
+# Local development infrastructure.
+# Postgres only - no Redis until concurrent runs prove they need it (see secure/ROADMAP.md, Phase 5).
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: repo-radar-postgres
+    environment:
+      POSTGRES_USER: repo_radar
+      POSTGRES_PASSWORD: local_dev_only
+      POSTGRES_DB: repo_radar
+    # Host port 5433 so this never collides with a Postgres already running on 5432.
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Without this, the backend can start before Postgres accepts connections.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U repo_radar -d repo_radar"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

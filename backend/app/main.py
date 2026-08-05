@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.config import settings
 
-app = FastAPI(title="API", version="0.1.0")
+from app.config import settings
+from app.routers import health
+
+app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,6 +14,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add routers here:
-# from app.routers import products
-# app.include_router(products.router, prefix="/api/v1")
+# Every route lives under /api/v1 so the API can version without breaking clients.
+app.include_router(health.router, prefix=settings.API_PREFIX)
