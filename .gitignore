@@ -1,6 +1,26 @@
 # Private working notes
 secure/
 
+# Environment
+.env
+.env.local
+.env.*.local
+
+# AI agent context (auto-generated)
+.context-cache/
+
+*.context.tmp
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+.next/
+
 # macOS
 .DS_Store
 
