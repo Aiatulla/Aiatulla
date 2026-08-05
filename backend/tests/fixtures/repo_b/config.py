@@ -2,13 +2,15 @@ import os
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://localhost/app")
 
-# Planted defect: a credential committed in application code instead of read
-# from the environment.
+# Planted defect: a credential written into source instead of read from the
+# environment.
 #
-# The value is deliberately vendor-neutral. A string shaped like a real provider
-# key would match GitHub secret scanning and push protection, so a fixture
-# written to be found by our auditor would also trip everyone else's.
-BILLING_API_SECRET = "8f3d9a2b1c7e4056a1b2c3d4e5f60718"
+# The value is deliberately dictionary words rather than a random-looking string.
+# Secret scanners flag high-entropy values and provider-shaped keys, so a
+# realistic fake would be blocked by GitHub push protection before it ever
+# reached our auditor. A model still reads this as a hardcoded credential, which
+# is the only property this fixture needs.
+BILLING_API_SECRET = "correct-horse-battery-staple"
 
 # Not a defect: read from the environment, with an empty placeholder default.
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
