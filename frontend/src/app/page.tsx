@@ -1,81 +1,110 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-import { apiFetch } from "@/lib/api";
-import type { HealthResponse } from "@/types";
+import { createRun } from "@/lib/api";
 
-/**
- * Three states the UI must handle: still loading, backend reachable, backend down.
- * Modelling them as one union rather than separate booleans makes an impossible
- * combination (loading and errored at once) unrepresentable.
- */
-type ConnectionState =
-  | { kind: "loading" }
-  | { kind: "connected"; health: HealthResponse }
-  | { kind: "unreachable" };
-
-/**
- * Phase 0 walking skeleton: proves the frontend can reach the backend.
- * Replaced by the repository submission form in Phase 6.
- */
 export default function HomePage() {
-  const [state, setState] = useState<ConnectionState>({ kind: "loading" });
+  const router = useRouter();
 
-  useEffect(() => {
-    // Guards against setting state after the component unmounts, which React
-    // warns about in development and which leaks in fast navigation.
-    let active = true;
+  // The key lives here and nowhere else. Not localStorage, not sessionStorage,
+  // not a cookie: it belongs to the visitor, and this app has no business
+  // keeping it after the tab closes.
+  const [apiKey, setApiKey] = useState("");
+  const [repositoryUrl, setRepositoryUrl] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    apiFetch<HealthResponse>("/health")
-      .then((health) => active && setState({ kind: "connected", health }))
-      .catch(() => active && setState({ kind: "unreachable" }));
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
 
-    return () => {
-      active = false;
-    };
-  }, []);
+    try {
+      const run = await createRun({ repository_url: repositoryUrl }, apiKey);
+      router.push(`/runs/${run.id}`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong.");
+      setSubmitting(false);
+    }
+  }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-content flex-col justify-center px-lg">
-      <p className="text-eyebrow uppercase text-ink-subtle">Phase 0</p>
+    <main className="mx-auto flex min-h-screen max-w-content flex-col justify-center px-lg py-section">
+      <p className="text-eyebrow uppercase text-ink-subtle">repo-radar</p>
 
-      <h1 className="mt-sm text-display-md text-ink">repo-radar</h1>
+      <h1 className="mt-sm text-display-md text-ink">Audit a repository</h1>
 
-      <p className="mt-md max-w-[52ch] text-body-lg text-ink-muted">
-        Multi-agent repository auditor. Parallel auditors, evaluated against golden
-        fixtures, with a hard cost ceiling per run.
+      <p className="mt-md max-w-[56ch] text-body-lg text-ink-muted">
+        Specialised auditors read the code in parallel, report findings through a
+        typed schema, and stop at a spending ceiling. Run it twice and the second
+        run tells you what changed.
       </p>
 
-      <div className="mt-xl rounded-lg border border-hairline bg-surface-1 p-lg">
-        <h2 className="text-eyebrow uppercase text-ink-subtle">Backend</h2>
-        <BackendStatus state={state} />
-      </div>
+      <form onSubmit={handleSubmit} className="mt-xl max-w-[52ch]">
+        <Field
+          label="Repository URL"
+          hint="A public repository on github.com, gitlab.com or bitbucket.org."
+        >
+          <input
+            type="url"
+            required
+            value={repositoryUrl}
+            onChange={(event) => setRepositoryUrl(event.target.value)}
+            placeholder="https://github.com/psf/requests"
+            className="w-full rounded-md border border-hairline bg-surface-1 px-sm py-xs text-body text-ink placeholder:text-ink-tertiary focus:border-hairline-strong focus:outline-none"
+          />
+        </Field>
+
+        <div className="mt-lg">
+          <Field
+            label="Your model API key"
+            hint="Anthropic, Gemini or OpenAI. Sent with this request only, never stored, and gone when you close the tab."
+          >
+            <input
+              type="password"
+              required
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder="sk-ant-... / AIza... / sk-..."
+              className="w-full rounded-md border border-hairline bg-surface-1 px-sm py-xs font-mono text-mono text-ink placeholder:text-ink-tertiary focus:border-hairline-strong focus:outline-none"
+            />
+          </Field>
+        </div>
+
+        {error !== null && (
+          <p role="alert" className="mt-md text-body-sm text-severity-critical">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="mt-lg rounded-md bg-primary px-md py-xs text-button text-primary-on hover:bg-primary-hover disabled:opacity-50"
+        >
+          {submitting ? "Starting..." : "Start audit"}
+        </button>
+      </form>
     </main>
   );
 }
 
-function BackendStatus({ state }: { state: ConnectionState }) {
-  if (state.kind === "loading") {
-    return <p className="mt-xs text-body-sm text-ink-subtle">Checking...</p>;
-  }
-
-  if (state.kind === "unreachable") {
-    return (
-      <p className="mt-xs text-body-sm text-ink-muted">
-        Not reachable. Start it with{" "}
-        <code className="font-mono text-mono text-ink">
-          uvicorn app.main:app --reload --port 8001
-        </code>
-      </p>
-    );
-  }
-
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint: string;
+  children: React.ReactNode;
+}) {
   return (
-    <p className="mt-xs flex items-center gap-xs text-body-sm text-ink">
-      <span aria-hidden className="h-xxs w-xxs rounded-full bg-success" />
-      Connected
-      <span className="font-mono text-mono text-ink-subtle">v{state.health.version}</span>
-    </p>
+    <label className="block">
+      <span className="text-eyebrow uppercase text-ink-subtle">{label}</span>
+      <span className="mt-xxs mb-xs block text-body-sm text-ink-tertiary">{hint}</span>
+      {children}
+    </label>
   );
 }
