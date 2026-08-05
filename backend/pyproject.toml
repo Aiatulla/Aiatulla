@@ -53,3 +53,11 @@ disallow_untyped_defs = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# A skipped evaluation is not a passing evaluation. This makes the reason visible
+# in the CI log instead of a bare "s" in the progress line.
+addopts = "-ra"
+
+[tool.ruff.lint.per-file-ignores]
+# Fixture repositories contain deliberately bad code. Linting them would fight
+# the defects that are planted there on purpose.
+"tests/fixtures/**" = ["ALL"]
