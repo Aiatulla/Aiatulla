@@ -2,17 +2,13 @@
   "repository": "repo_b",
   "description": "A small accounts module with security and test quality defects planted.",
   "notes": [
-    "config.py:SMTP_PASSWORD is a placeholder and must not be reported as a credential.",
+    "config.py has no planted defect. Every value is read from the environment, so it is a control file: an auditor reporting anything here is a false positive.",
+    "The hardcoded_credential expectation was removed when config.py moved to os.getenv. This fixture no longer covers that category, and no other fixture does either.",
     "accounts.py:transfer uses parameter binding and must not be reported as injection.",
     "test_accounts.py:test_connect_returns_a_connection is a real test and must not be reported."
   ],
   "expected_findings": {
     "security": [
-      {
-        "category": "hardcoded_credential",
-        "file_path": "config.py",
-        "why_planted": "BILLING_API_SECRET is committed in application code rather than read from the environment."
-      },
       {
         "category": "injection_risk",
         "file_path": "accounts.py",
