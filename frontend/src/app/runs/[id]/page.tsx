@@ -75,6 +75,17 @@ function RunBody({ run }: { run: Run }) {
     return <p className="text-body-sm text-ink-subtle">Auditors are working...</p>;
   }
 
+  // A failed run has no findings because nothing ran, not because the code is
+  // clean. Showing the empty-state text here would tell someone their
+  // repository passed an audit that never happened.
+  if (run.status === "failed") {
+    return (
+      <p className="text-body-sm text-ink-subtle">
+        This run did not complete, so nothing was checked. The reason is above.
+      </p>
+    );
+  }
+
   return <FindingsTable findings={run.findings} />;
 }
 
