@@ -27,7 +27,7 @@ Audience: developers and hiring teams who want a repeatable read on a repository
 
 - Frontend: Next.js 14 (App Router), TypeScript, Tailwind CSS. shadcn/ui is added in Phase 6, when there are components that need it.
 - Backend: FastAPI, Python 3.11, SQLAlchemy 2.0 (async), Pydantic v2, PostgreSQL
-- Tooling: uv (Python environments), ruff (lint and format), mypy strict, pytest
+- Tooling: uv (Python environments, with `uv.lock` committed for reproducible installs), ruff (lint and format), mypy strict, pytest
 - Auth: none in Phase 0. Bring your own key arrives in Phase 4.
 - Deployment: not decided. Phase 7.
 
@@ -83,8 +83,7 @@ Keys arrive per session through the bring your own key path in Phase 4.
 docker compose up -d                       # Postgres
 
 cd backend
-uv venv --python 3.11
-uv pip install -e ".[dev]"
+uv sync --extra dev                        # installs exactly what uv.lock pins
 .venv/bin/uvicorn app.main:app --reload --port 8001  # http://localhost:8001
 
 cd ../frontend
