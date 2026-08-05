@@ -47,13 +47,35 @@
   --color-ink-subtle: #8a8f98;
   --color-ink-tertiary: #62666d;
 
-  /*
-   * The marketing system ships one semantic colour. The severity and diff-state
-   * palette that the findings table needs is added in Phase 6, from Linear's
-   * in-product priority colours.
-   */
   --color-success: #27a644;
   --color-overlay: rgba(0, 0, 0, 0.8);
+
+  /*
+   * Product layer. DESIGN.md documents Linear's marketing site, which ships one
+   * semantic colour, so the findings table needs a palette the source system
+   * does not define.
+   *
+   * The brand lavender is deliberately absent here. Severity has to be readable
+   * at a glance in a dense table, and a scale that shared a hue with the primary
+   * button would make "important" and "brand" look like the same thing.
+   */
+  --color-severity-critical: #f2555a;
+  --color-severity-high: #e5943f;
+  --color-severity-medium: #eac54f;
+  --color-severity-low: #4ea7fc;
+  --color-severity-info: #8a8f98;
+
+  /*
+   * Diff states answer a different question from severity, so they must not
+   * look like severity. A fixed critical and a new critical have to be
+   * distinguishable at a glance.
+   */
+  --color-change-new: #e5943f;
+  --color-change-fixed: #27a644;
+  --color-change-persisting: #62666d;
+
+  /* Rows in a dense table need a hairline that reads without shouting. */
+  --color-table-row-hover: #0f1011;
 }
 
 body {
