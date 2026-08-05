@@ -1,4 +1,3 @@
-import httpx
 import pytest
 
 from app.llm.protocol import Message, Tool
@@ -9,33 +8,6 @@ TOOL = Tool(
     description="Report one audit finding",
     parameters={"type": "object", "properties": {"summary": {"type": "string"}}},
 )
-
-
-@pytest.fixture
-def mock_transport(monkeypatch):
-    """Route every httpx.AsyncClient through a canned response.
-
-    This exercises the adapter, our code, without a network call or an API key.
-    Cassettes cover the layer above; this covers request building and parsing.
-    """
-
-    def install(payload: dict, status: int = 200) -> list[httpx.Request]:
-        captured: list[httpx.Request] = []
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            captured.append(request)
-            return httpx.Response(status, json=payload)
-
-        original_init = httpx.AsyncClient.__init__
-
-        def patched_init(self, *args, **kwargs):
-            kwargs["transport"] = httpx.MockTransport(handler)
-            original_init(self, *args, **kwargs)
-
-        monkeypatch.setattr(httpx.AsyncClient, "__init__", patched_init)
-        return captured
-
-    return install
 
 
 async def test_parses_tool_call_and_usage(mock_transport):

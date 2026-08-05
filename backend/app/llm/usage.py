@@ -12,8 +12,17 @@ from decimal import Decimal
 # quietly wrong.
 _PRICE_PER_MILLION: dict[str, tuple[Decimal, Decimal]] = {
     # model: (input, output)
+    #
+    # VERIFY BEFORE RELYING ON THESE FOR REAL SPEND. They are working values, not
+    # quoted from a price sheet at the time of writing. A wrong price makes the
+    # budget ceiling wrong in the same direction.
     "gemini-2.0-flash": (Decimal("0.10"), Decimal("0.40")),
     "gemini-2.5-flash": (Decimal("0.30"), Decimal("2.50")),
+    "claude-haiku-4-5-20251001": (Decimal("1.00"), Decimal("5.00")),
+    "claude-sonnet-5": (Decimal("3.00"), Decimal("15.00")),
+    "claude-opus-5": (Decimal("15.00"), Decimal("75.00")),
+    "gpt-4o": (Decimal("2.50"), Decimal("10.00")),
+    "gpt-4o-mini": (Decimal("0.15"), Decimal("0.60")),
 }
 
 _ONE_MILLION = Decimal(1_000_000)
