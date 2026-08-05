@@ -1,0 +1,40 @@
+{
+  "repository": "repo_b",
+  "description": "A small accounts module with security and test quality defects planted.",
+  "notes": [
+    "config.py:SMTP_PASSWORD is a placeholder and must not be reported as a credential.",
+    "accounts.py:transfer uses parameter binding and must not be reported as injection.",
+    "test_accounts.py:test_connect_returns_a_connection is a real test and must not be reported."
+  ],
+  "expected_findings": {
+    "security": [
+      {
+        "category": "hardcoded_credential",
+        "file_path": "config.py",
+        "why_planted": "BILLING_API_SECRET is committed in application code rather than read from the environment."
+      },
+      {
+        "category": "injection_risk",
+        "file_path": "accounts.py",
+        "why_planted": "find_account concatenates the email argument straight into SQL."
+      }
+    ],
+    "test_quality": [
+      {
+        "category": "assertion_free_test",
+        "file_path": "test_accounts.py",
+        "why_planted": "test_find_account_runs calls the function and asserts nothing."
+      },
+      {
+        "category": "tautological_assertion",
+        "file_path": "test_accounts.py",
+        "why_planted": "test_transfer_moves_money asserts True, which cannot fail."
+      },
+      {
+        "category": "disabled_test",
+        "file_path": "test_accounts.py",
+        "why_planted": "test_overdraft_is_rejected is skipped with no reason given."
+      }
+    ]
+  }
+}
