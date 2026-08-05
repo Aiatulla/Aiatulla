@@ -62,7 +62,7 @@ async def test_a_perfect_auditor_scores_perfectly_on_the_fixture():
     )
 
     findings = await DeadCodeAuditor().run(client, FIXTURE)
-    result = evaluate(load_expected(FIXTURE / "golden.json"), findings)
+    result = evaluate(load_expected(FIXTURE / "golden.json", "dead_code"), findings)
 
     assert result.recall == 1.0, result.summary()
     assert result.precision == 1.0, result.summary()
