@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.llm.cassette import CassetteMode
@@ -25,7 +26,10 @@ class Settings(BaseSettings):
     # and needs no credentials, which is what lets a fresh clone run the suite
     # offline and for free. Recording is the only path that requires a real key.
     LLM_MODEL: str = "gemini-2.0-flash"
-    GEMINI_API_KEY: str | None = None
+    # SecretStr, not str: it prints as "**********" in a repr, a log line or a
+    # traceback. Settings objects end up in all three, and a key that leaks into
+    # a log is as compromised as one committed to the repository.
+    GEMINI_API_KEY: SecretStr | None = None
     LLM_CASSETTE_DIR: Path = Path(__file__).resolve().parent.parent / "tests" / "cassettes"
     LLM_CASSETTE_MODE: CassetteMode = CassetteMode.REPLAY
     # 3000 is the Next.js dev server default, 8080 covers a static or containerised

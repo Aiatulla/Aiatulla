@@ -1,4 +1,5 @@
 import pytest
+from pydantic import SecretStr
 
 from app.config import settings
 from app.llm.cassette import CassetteClient, CassetteMode
@@ -25,7 +26,7 @@ def test_recording_without_a_key_fails_loudly(monkeypatch):
 
 def test_recording_wraps_the_real_provider(monkeypatch):
     monkeypatch.setattr(settings, "LLM_CASSETTE_MODE", CassetteMode.RECORD)
-    monkeypatch.setattr(settings, "GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", SecretStr("test-key"))
 
     client = build_llm_client()
 

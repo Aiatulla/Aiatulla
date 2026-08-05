@@ -34,5 +34,9 @@ def build_llm_client() -> LLMClient:
         cassette_dir=settings.LLM_CASSETTE_DIR,
         model=settings.LLM_MODEL,
         mode=CassetteMode.RECORD,
-        inner=GeminiClient(api_key=settings.GEMINI_API_KEY, model=settings.LLM_MODEL),
+        # Unwrapped only here, at the point it is handed to the provider.
+        inner=GeminiClient(
+            api_key=settings.GEMINI_API_KEY.get_secret_value(),
+            model=settings.LLM_MODEL,
+        ),
     )
