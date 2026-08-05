@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 import httpx
@@ -6,6 +7,12 @@ from app.llm.protocol import Message, Response, Tool, ToolCall
 from app.llm.usage import build_usage
 
 _BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+
+# Three attempts, because a per-minute limit clears in about a minute and a
+# per-day limit will not clear at all. Retrying past that just delays the error.
+MAX_ATTEMPTS = 3
+_FALLBACK_DELAY_SECONDS = 2.0
+_MAX_ERROR_CHARS = 400
 
 # Gemini names the assistant role "model". Everything above this adapter uses the
 # provider-neutral names from protocol.py.
@@ -40,17 +47,30 @@ class GeminiClient:
         payload = self._build_payload(messages, tools, system)
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
-            http_response = await client.post(
-                f"{_BASE_URL}/models/{self._model}:generateContent",
-                headers=self._headers,
-                json=payload,
-            )
+            for attempt in range(MAX_ATTEMPTS):
+                http_response = await client.post(
+                    f"{_BASE_URL}/models/{self._model}:generateContent",
+                    headers=self._headers,
+                    json=payload,
+                )
 
-        if http_response.status_code != httpx.codes.OK:
-            # The body may quote the request but never the key, which is a header.
-            raise GeminiError(f"Gemini returned {http_response.status_code}: {http_response.text}")
+                if http_response.status_code == httpx.codes.OK:
+                    return self._parse(http_response.json())
 
-        return self._parse(http_response.json())
+                # Rate limits are the normal cost of running several auditors at
+                # once, not a failure. The response says how long to wait, so
+                # honour it rather than guessing.
+                rate_limited = http_response.status_code == httpx.codes.TOO_MANY_REQUESTS
+                if rate_limited and attempt < MAX_ATTEMPTS - 1:
+                    await asyncio.sleep(_retry_delay(http_response, attempt))
+                    continue
+
+                break
+
+        # The body may quote the request but never the key, which is a header.
+        raise GeminiError(
+            f"Gemini returned {http_response.status_code}: {_readable_error(http_response)}"
+        )
 
     def _build_payload(
         self,
@@ -121,3 +141,37 @@ class GeminiClient:
             text="".join(text_fragments) if text_fragments else None,
             tool_calls=tool_calls,
         )
+
+
+def _retry_delay(response: httpx.Response, attempt: int) -> float:
+    """How long to wait before retrying a rate-limited call.
+
+    Gemini returns a RetryInfo block saying exactly how long to wait. Using it
+    beats a guess, and falls back to exponential backoff when it is absent.
+    """
+    try:
+        for detail in response.json()["error"].get("details", []):
+            raw = detail.get("retryDelay")
+            if raw:
+                return float(str(raw).removesuffix("s"))
+    except (ValueError, KeyError, TypeError):
+        pass
+
+    return float(_FALLBACK_DELAY_SECONDS * (2**attempt))
+
+
+def _readable_error(response: httpx.Response) -> str:
+    """Pull the human-readable message out of an error response.
+
+    The raw body is several kilobytes of quota metadata. Storing all of it puts
+    a wall of JSON in front of anyone trying to read why their run failed.
+    """
+    try:
+        message = str(response.json()["error"]["message"])
+    except (ValueError, KeyError, TypeError):
+        message = response.text
+
+    message = " ".join(message.split())
+    if len(message) > _MAX_ERROR_CHARS:
+        return message[:_MAX_ERROR_CHARS] + "..."
+    return message
