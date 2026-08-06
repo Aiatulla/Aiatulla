@@ -11,6 +11,7 @@ from app.auditors.security import SecurityAuditor
 from app.auditors.test_quality import TestQualityAuditor
 from app.cloner import clone_repository
 from app.llm.providers import DEFAULT_MODELS, build_client, provider_for_key
+from app.llm.rate_limit import TokenRateLimiter
 from app.orchestrator import run_audit
 from app.repositories.runs import RunRepository
 
@@ -58,7 +59,10 @@ async def execute_run(
         await session.commit()
 
     try:
-        client = build_client(api_key.get_secret_value(), model=model)
+        # Paced before it is budgeted: the rate limiter waits for quota rather
+        # than letting a request be rejected and retried, which spends more of
+        # the allowance that was already exhausted.
+        client = TokenRateLimiter(build_client(api_key.get_secret_value(), model=model))
 
         async with clone_repository(repository_url) as workspace:
             result = await run_audit(

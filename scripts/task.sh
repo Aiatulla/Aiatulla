@@ -49,7 +49,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 # Build context
 CONTEXT=$(cat <<PROMPT
-$(cat CLAUDE.md 2>/dev/null || cat GEMINI.md 2>/dev/null)
+$(cat AGENTS.md 2>/dev/null || cat CLAUDE.md 2>/dev/null)
 
 ---
 

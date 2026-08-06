@@ -1,6 +1,9 @@
 import asyncio
 from decimal import Decimal
+from itertools import pairwise
 from pathlib import Path
+
+import pytest
 
 from app.auditors.base import Auditor, AuditorError
 from app.llm.protocol import Response, ToolCall
@@ -9,6 +12,18 @@ from app.orchestrator import AuditorStatus, run_audit
 
 FIXTURE = Path(__file__).parent / "fixtures" / "repo_a"
 MODEL = "gemini-2.0-flash"
+
+
+@pytest.fixture(autouse=True)
+def no_stagger(monkeypatch):
+    """Remove the delay between auditors starting.
+
+    Real runs space requests out so three prompts do not become one burst that
+    trips a per-minute quota. These tests are about fan-out and budgeting, and
+    waiting through the real delay would make them slow without testing it. The
+    delay itself is covered by test_auditors_are_staggered.
+    """
+    monkeypatch.setattr("app.orchestrator.STAGGER_SECONDS", 0.0)
 
 
 class FakeAuditor(Auditor):
@@ -174,3 +189,23 @@ async def test_a_clean_run_is_not_marked_truncated():
 
     assert not result.truncated
     assert result.is_complete
+
+
+async def test_auditors_are_staggered(monkeypatch):
+    """Three prompts sent in the same instant trip a per-minute quota even when
+    each one is individually acceptable. A real run failed exactly that way."""
+    monkeypatch.setattr("app.orchestrator.STAGGER_SECONDS", 0.05)
+    started: list[float] = []
+
+    class TimestampingClient(SlowClient):
+        async def complete(self, messages=None, tools=None, system=None):
+            started.append(asyncio.get_running_loop().time())
+            return await super().complete(messages, tools, system)
+
+    auditors = [FakeAuditor(f"auditor_{index}") for index in range(3)]
+
+    await run_audit(TimestampingClient(delay=0.0), FIXTURE, auditors, Decimal("1.00"))
+
+    assert len(started) == 3
+    gaps = [b - a for a, b in pairwise(started)]
+    assert all(gap > 0.02 for gap in gaps), f"requests were not spaced out: {gaps}"

@@ -16,7 +16,7 @@ class OpenAIError(RuntimeError):
 class OpenAIClient:
     """Talks to the OpenAI chat completions API over plain HTTP."""
 
-    def __init__(self, api_key: str, model: str, timeout_seconds: float = 60.0) -> None:
+    def __init__(self, api_key: str, model: str, timeout_seconds: float = 180.0) -> None:
         self._model = model
         self._timeout = timeout_seconds
         self._headers = {

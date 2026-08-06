@@ -3,15 +3,9 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from app.auditors.rendering import render_repository
 from app.llm.protocol import LLMClient, Message, Response, Tool
 from app.schemas.finding import Finding, findings_tool_schema
-
-# Files an auditor never reads. Reading them wastes tokens and, for lock files,
-# floods the prompt with content that tells the model nothing about the code.
-IGNORED_DIRECTORIES = frozenset({".git", "node_modules", ".venv", "venv", "__pycache__", ".next"})
-IGNORED_SUFFIXES = frozenset({".lock", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".woff", ".woff2"})
-
-MAX_FILE_BYTES = 50_000
 
 
 class AuditorError(RuntimeError):
@@ -79,39 +73,3 @@ class Auditor(ABC):
             raise AuditorError(
                 f"{self.name} produced a finding that failed validation: {exc}"
             ) from exc
-
-
-def render_repository(root: Path) -> str:
-    """Flatten a repository into one prompt-ready string.
-
-    Deterministic ordering matters more than it looks: the cassette key hashes
-    this text, so an unsorted walk would produce a different key on every machine
-    and every cassette would miss.
-    """
-    sections = [f"Repository tree:\n{_render_tree(root)}\n"]
-
-    for path in sorted(_readable_files(root)):
-        relative = path.relative_to(root)
-        content = path.read_text(errors="replace")[:MAX_FILE_BYTES]
-        sections.append(f"--- {relative} ---\n{content}")
-
-    return "\n".join(sections)
-
-
-def _readable_files(root: Path) -> list[Path]:
-    return [
-        path
-        for path in root.rglob("*")
-        if path.is_file()
-        and not _is_ignored(path.relative_to(root))
-        and path.suffix not in IGNORED_SUFFIXES
-    ]
-
-
-def _render_tree(root: Path) -> str:
-    paths = sorted(str(path.relative_to(root)) for path in _readable_files(root))
-    return "\n".join(paths)
-
-
-def _is_ignored(relative: Path) -> bool:
-    return any(part in IGNORED_DIRECTORIES for part in relative.parts)

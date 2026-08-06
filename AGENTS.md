@@ -10,7 +10,7 @@ specialised auditors read it in parallel and report typed findings, and each run
 is compared against the previous run of the same repository.
 
 Full detail: [REPO_RADAR.md](REPO_RADAR.md). Architecture and stack:
-[DOCS.md](DOCS.md). Build order: `secure/ROADMAP.md`.
+[DOCS.md](DOCS.md). Where it is going: [ROADMAP.md](ROADMAP.md).
 
 ## Before you start
 
@@ -30,10 +30,10 @@ A change is not finished until all of these pass:
 cd backend
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/mypy app            # strict
-.venv/bin/pytest -q --cov=app # 180 passing, 0 skipped, 90% minimum
+.venv/bin/pytest -q --cov=app # 197 passing, 0 skipped, 90% minimum
 
 cd ../frontend
-npm run lint && npm run typecheck && npm run build
+npm run lint && npm run typecheck && npm run test && npm run build
 ```
 
 Or simply `make check`, which runs all of it.

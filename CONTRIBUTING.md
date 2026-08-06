@@ -27,7 +27,7 @@ cd backend
 .venv/bin/pytest -q --cov=app               # 90% minimum
 
 cd ../frontend
-npm run lint && npm run typecheck && npm run build
+npm run lint && npm run typecheck && npm run test && npm run build
 ```
 
 **Zero skipped tests is the bar.** A skipped evaluation is not a passing

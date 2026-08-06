@@ -11,23 +11,23 @@
             "file_path": "test_accounts.py",
             "line": 6,
             "severity": "medium",
-            "summary": "test_find_account_runs executes code without making any assertions."
+            "summary": "test_find_account_runs invokes code but makes no assertions, so it cannot catch regressions."
           },
           {
             "category": "tautological_assertion",
             "evidence": "assert True",
             "file_path": "test_accounts.py",
             "line": 14,
-            "severity": "medium",
-            "summary": "test_transfer_moves_money uses 'assert True', which can never fail."
+            "severity": "high",
+            "summary": "test_transfer_moves_money asserts True, an assertion that cannot fail regardless of outcome."
           },
           {
             "category": "disabled_test",
-            "evidence": "@pytest.mark.skip",
+            "evidence": "@pytest.mark.skip\ndef test_overdraft_is_rejected():",
             "file_path": "test_accounts.py",
             "line": 17,
-            "severity": "low",
-            "summary": "test_overdraft_is_rejected is skipped without providing a reason."
+            "severity": "medium",
+            "summary": "test_overdraft_is_rejected is marked as skipped without giving a reason."
           }
         ]
       },
@@ -35,9 +35,9 @@
     }
   ],
   "usage": {
-    "cost_usd": "0.0010175",
+    "cost_usd": "0.00107",
     "input_tokens": 1475,
     "model": "gemini-flash-latest",
-    "output_tokens": 230
+    "output_tokens": 251
   }
 }

@@ -188,3 +188,53 @@ async def test_a_persistent_rate_limit_gives_a_readable_error(mock_transport, mo
     assert "You exceeded your current quota" in message
     assert len(message) < 600, "the error must not carry the whole response body"
     assert "QuotaFailure" not in message
+
+
+@pytest.mark.parametrize("status", [429, 500, 502, 503, 504])
+async def test_transient_provider_failures_are_retried(monkeypatch, status):
+    """503 is the provider saying "temporary, try again". A real run threw away
+    two auditors because only 429 was retried."""
+    import asyncio
+
+    async def no_sleep(seconds):
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(status, json={"error": {"message": "try again"}})
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [{"content": {"parts": [{"text": "ok"}]}}],
+                "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
+            },
+        )
+
+    original_init = httpx.AsyncClient.__init__
+
+    def patched_init(self, *args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(handler)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.AsyncClient, "__init__", patched_init)
+
+    response = await GeminiClient(api_key="k", model=MODEL).complete(
+        [Message(role="user", content="hi")]
+    )
+
+    assert response.text == "ok"
+    assert calls["n"] == 2, f"{status} should have been retried"
+
+
+async def test_a_client_error_is_not_retried(mock_transport):
+    """A 400 means the request was wrong. Retrying it wastes time and quota."""
+    captured = mock_transport({"error": {"message": "bad request"}}, status=400)
+
+    with pytest.raises(GeminiError, match="400"):
+        await GeminiClient(api_key="k", model=MODEL).complete([Message(role="user", content="hi")])
+
+    assert len(captured) == 1

@@ -11,7 +11,7 @@
             "file_path": "accounts.py",
             "line": 12,
             "severity": "high",
-            "summary": "User input is directly concatenated into a SQL query, creating a SQL injection vulnerability."
+            "summary": "User input is concatenated directly into a SQL query without parameterization, leading to SQL injection."
           }
         ]
       },
@@ -19,9 +19,9 @@
     }
   ],
   "usage": {
-    "cost_usd": "0.0006705",
+    "cost_usd": "0.0006755",
     "input_tokens": 1510,
     "model": "gemini-flash-latest",
-    "output_tokens": 87
+    "output_tokens": 89
   }
 }
