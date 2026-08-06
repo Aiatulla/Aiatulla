@@ -15,9 +15,10 @@ Full detail: [REPO_RADAR.md](REPO_RADAR.md). Architecture and stack:
 ## Before you start
 
 ```bash
-docker compose up -d
-cd backend && uv sync --extra dev && .venv/bin/alembic upgrade head
+make install     # dependencies, database, migrations
 ```
+
+`make` on its own lists every target.
 
 You do **not** need an API key. Tests replay recorded cassettes.
 
@@ -34,6 +35,8 @@ cd backend
 cd ../frontend
 npm run lint && npm run typecheck && npm run build
 ```
+
+Or simply `make check`, which runs all of it.
 
 **Zero skips is the bar.** A skipped evaluation is not a passing evaluation. If
 `tests/eval/` starts skipping, a prompt or tool schema changed and cassettes need

@@ -250,19 +250,17 @@ stateDiagram-v2
 [OpenAI](https://platform.openai.com/api-keys).
 
 ```bash
-# 1. Database
-docker compose up -d
+make install    # dependencies, database, migrations
+make dev        # backend and frontend with hot reload
+```
 
-# 2. Backend
-cd backend
-uv sync --extra dev            # or: python -m venv .venv && pip install -e ".[dev]"
-.venv/bin/alembic upgrade head
+`make` on its own lists every target. Without make:
+
+```bash
+docker compose up -d                                    # database
+cd backend && uv sync --extra dev && .venv/bin/alembic upgrade head
 .venv/bin/uvicorn app.main:app --reload --port 8001
-
-# 3. Frontend
-cd ../frontend
-npm install
-npm run dev
+cd ../frontend && npm install && npm run dev
 ```
 
 Open <http://localhost:3000>, paste your key, submit a repository.
@@ -270,7 +268,7 @@ Open <http://localhost:3000>, paste your key, submit a repository.
 **Or run the whole stack in containers:**
 
 ```bash
-POSTGRES_PASSWORD=choose-one docker compose -f docker-compose.prod.yml up --build
+make up
 ```
 
 Migrations run on boot, the backend runs as a non-root user, and cloned
@@ -491,18 +489,20 @@ frontend/
 CI runs exactly these commands.
 
 ```bash
-# backend
+make check      # lint, typecheck and test, both sides
+make audit      # known vulnerabilities in dependencies
+```
+
+Individually:
+
+```bash
 cd backend
-.venv/bin/ruff check .
-.venv/bin/ruff format --check .
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/mypy app            # strict
 .venv/bin/pytest -q --cov=app # 180 passed, 95% covered
 
-# frontend
-cd frontend
-npm run lint
-npm run typecheck
-npm run build
+cd ../frontend
+npm run lint && npm run typecheck && npm run build
 ```
 
 Tests open no sockets and need no database: they call the app in process through
