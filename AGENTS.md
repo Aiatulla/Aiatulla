@@ -29,7 +29,7 @@ A change is not finished until all of these pass:
 cd backend
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/mypy app            # strict
-.venv/bin/pytest -q           # 166 passing, 0 skipped
+.venv/bin/pytest -q --cov=app # 180 passing, 0 skipped, 90% minimum
 
 cd ../frontend
 npm run lint && npm run typecheck && npm run build
@@ -87,8 +87,9 @@ app/auditors/     one module per auditor
 
 ## Traps that have already cost time
 
-- **`params` in Next.js 14 is a plain object**, not a promise. Typing it as a
-  promise compiles, passes typecheck, and fails on every request.
+- **`params` in Next.js 15 is a promise**, unwrapped with `use()`. It was a plain
+  object in 14. Getting this wrong is invisible to typecheck, which simply
+  believes the annotation, and then fails on every request.
 - **Tailwind strips interpolated class names.** `text-severity-${x}` renders
   unstyled. Use an explicit map.
 - **Do not run `next build` while `next dev` is running.** Both write to `.next/`

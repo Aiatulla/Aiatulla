@@ -25,15 +25,15 @@ Audience: developers and hiring teams who want a repeatable read on a repository
 
 ## Tech Stack
 
-- Frontend: Next.js 14 (App Router), TypeScript, Tailwind CSS. shadcn/ui is added in Phase 6, when there are components that need it.
+- Frontend: Next.js 15 (App Router), TypeScript, Tailwind CSS. shadcn/ui is added in Phase 6, when there are components that need it.
 - Backend: FastAPI, Python 3.11, SQLAlchemy 2.0 (async), Pydantic v2, PostgreSQL
 - Tooling: uv (Python environments, with `uv.lock` committed for reproducible installs), ruff (lint and format), mypy strict, pytest
-- Auth: none in Phase 0. Bring your own key arrives in Phase 4.
-- Deployment: not decided. Phase 7.
+- Auth: none. Bring your own key per request, plus per-caller rate limiting.
+- Deployment: containerised via `docker-compose.prod.yml`. Not hosted, by choice.
 
 No Redis.
 Background work runs through FastAPI BackgroundTasks and run state lives in Postgres.
-Redis plus arq is reconsidered at Phase 5, only if concurrent runs measurably outgrow a single process.
+Redis plus arq arrives at Stage 1 in `ROADMAP.md`, when durability across restarts is needed.
 
 ## Folder Conventions
 
@@ -59,10 +59,14 @@ backend/tests/eval/             the regression gate for prompt changes
 Not created yet, deliberately. Each arrives with the phase that needs it, so
 nothing sits in the tree unwired:
 
-backend/app/services/           business logic                        (Phase 4)
-backend/app/repositories/       database query layer                  (Phase 4)
-backend/app/models/             SQLAlchemy ORM models                 (Phase 4)
-backend/alembic/                migrations                            (Phase 4)
+backend/app/services/           business logic
+backend/app/repositories/       database query layer
+backend/app/models/             SQLAlchemy ORM models
+backend/app/rate_limit.py       per-caller sliding window
+backend/alembic/                migrations
+backend/Dockerfile              multi-stage, non-root runtime
+frontend/Dockerfile             standalone Next output
+docker-compose.prod.yml         the whole stack in containers
 ```
 
 ## API Base URL
@@ -89,7 +93,7 @@ Every variable has a development default, so a fresh clone runs without configur
 | `GEMINI_API_KEY` | backend | Only needed to record cassettes. |
 
 No model API key is stored server side.
-Keys arrive per session through the bring your own key path in Phase 4.
+Keys arrive per request in the `X-LLM-Key` header and are never persisted.
 
 ## Running Locally
 
@@ -115,7 +119,7 @@ cd backend
 .venv/bin/ruff check .
 .venv/bin/ruff format --check .
 .venv/bin/mypy app
-.venv/bin/pytest -q
+.venv/bin/pytest -q --cov=app        # 90% minimum
 
 cd frontend
 npm run lint
@@ -134,23 +138,24 @@ See `secure/ROADMAP.md` for the eight phases, the files each produces, and the c
 | --- | --- | --- |
 | 0 Foundation | done | Both sides build and test on a clean clone. |
 | 1 LLM client and cassettes | done | Replay is the default, so no key is needed to run anything. |
-| 2 First auditor | **machinery done, not measured** | The evaluation skips until cassettes are recorded. |
-| 3 Orchestrator and budget | **machinery done, not measured** | Same reason. Three auditors, concurrent, one shared ceiling. |
+| 2 First auditor | done | Measured: precision 1.00, recall 1.00 against recorded cassettes. |
+| 3 Orchestrator and budget | done | Three auditors, concurrent, one shared ceiling. |
 | 4 API and BYOK | done | Runs execute in the background; the caller's own key, never stored. |
 | 5 History and diff | done | A run is compared against the previous completed run of the same repository. |
-| 6 Frontend | next | |
+| 6 Frontend | done | Submit, live run view, findings table, history and diff. |
+| 7 Documentation and packaging | done | Containerised, documented, not hosted. |
 
 **Redis checkpoint, decided at Phase 5: still not needed.** Background work runs
 through FastAPI BackgroundTasks and run state lives in Postgres.
 Nothing so far has needed a job queue or a shared cache.
 Revisit when concurrent runs measurably outgrow a single process, and add `arq` then, with the measurement that justified it.
 
-Phases 2 and 3 are not finished until this runs and the evaluations stop skipping:
+Cassettes are recorded and committed, so the evaluation runs offline with no key.
+Re-record only when a prompt, tool schema or model changes:
 
 ```bash
 cd backend
 GEMINI_API_KEY=... .venv/bin/python scripts/record_cassettes.py
-.venv/bin/pytest tests/eval -v
 ```
 
-Six calls on a free tier. Until then the auditors' prompts are unmeasured: everything around the model is tested, the model's own detection quality is not.
+Public planning lives in `ROADMAP.md`; `secure/ROADMAP.md` is the private build log.
