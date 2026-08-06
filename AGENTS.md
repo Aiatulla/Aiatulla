@@ -30,10 +30,10 @@ A change is not finished until all of these pass:
 cd backend
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/mypy app            # strict
-.venv/bin/pytest -q --cov=app # 180 passing, 0 skipped, 90% minimum
+.venv/bin/pytest -q --cov=app # 197 passing, 0 skipped, 90% minimum
 
 cd ../frontend
-npm run lint && npm run typecheck && npm run build
+npm run lint && npm run typecheck && npm run test && npm run build
 ```
 
 Or simply `make check`, which runs all of it.

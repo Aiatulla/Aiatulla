@@ -11,10 +11,11 @@ it twice and the second run tells you what changed.
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-async-009688)](https://fastapi.tiangolo.com/)
 [![Next.js 15](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
-[![Tests](https://img.shields.io/badge/tests-180%20passing-27a644)](#verification)
+[![Tests](https://img.shields.io/badge/tests-225%20passing-27a644)](#verification)
 [![Coverage](https://img.shields.io/badge/coverage-95%25-27a644)](#verification)
 [![mypy strict](https://img.shields.io/badge/mypy-strict-27a644)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.1.0-5e6ad2)](CHANGELOG.md)
 
 ---
 
@@ -34,7 +35,7 @@ it twice and the second run tells you what changed.
 - [Known limitations](#known-limitations)
 - [License](#license)
 
-**Further reading:** [ROADMAP.md](ROADMAP.md) ·
+**Further reading:** [ROADMAP.md](ROADMAP.md) · [CHANGELOG.md](CHANGELOG.md) ·
 [docs/EVALUATION.md](docs/EVALUATION.md) · [SECURITY.md](SECURITY.md) ·
 [CONTRIBUTING.md](CONTRIBUTING.md) · [AGENTS.md](AGENTS.md)
 
@@ -499,7 +500,7 @@ Individually:
 cd backend
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/mypy app            # strict
-.venv/bin/pytest -q --cov=app # 180 passed, 95% covered
+.venv/bin/pytest -q --cov=app # 197 passed, 95% covered
 
 cd ../frontend
 npm run lint && npm run typecheck && npm run build
@@ -535,7 +536,6 @@ Stated plainly, because a tool that measures honesty should be honest.
 - **The websocket polls Postgres once a second** rather than subscribing. It
   survives multiple workers, which an in-memory subscription would not, but it is
   not instant.
-- **No frontend tests.**
 - **Findings are not deduplicated across auditors.** Two auditors noticing the
   same problem report it twice.
 
