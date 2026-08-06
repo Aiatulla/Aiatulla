@@ -100,3 +100,74 @@ def test_tool_schema_has_no_refs():
     assert "$ref" not in serialised
     assert "$defs" not in serialised
     assert "critical" in serialised, "the severity enum must survive inlining"
+
+
+def test_lock_files_and_images_are_not_sent(tmp_path):
+    """package-lock.json is 223KB of dependency hashes and an SVG is coordinates.
+    Neither tells a model anything about code quality, and both crowd out source."""
+    (tmp_path / "app.py").write_text("print('hi')")
+    (tmp_path / "package-lock.json").write_text('{"lockfileVersion": 3}')
+    (tmp_path / "logo.svg").write_text("<svg><path d='M0 0'/></svg>")
+    (tmp_path / "uv.lock").write_text("version = 1")
+
+    rendered = render_repository(tmp_path)
+
+    assert "app.py" in rendered
+    assert "package-lock.json" not in rendered
+    assert "logo.svg" not in rendered
+    assert "uv.lock" not in rendered
+
+
+def test_tool_caches_are_not_sent(tmp_path):
+    (tmp_path / "app.py").write_text("x = 1")
+    cache = tmp_path / ".mypy_cache" / "3.11"
+    cache.mkdir(parents=True)
+    (cache / "cache.db").write_text("binary-ish junk" * 100)
+
+    rendered = render_repository(tmp_path)
+
+    assert "app.py" in rendered
+    assert "cache.db" not in rendered
+
+
+def test_an_oversized_repository_is_truncated(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.auditors.base.MAX_PROMPT_BYTES", 2_000)
+    for index in range(20):
+        (tmp_path / f"file_{index}.py").write_text("x = 1\n" * 100)
+
+    rendered = render_repository(tmp_path)
+
+    assert len(rendered) <= 2_000 + 1_000, "the note itself is allowed to exceed slightly"
+
+
+def test_truncation_is_declared_in_the_prompt(tmp_path, monkeypatch):
+    """An auditor that silently saw half a repository would report on half a
+    repository while looking exactly like one that had seen all of it."""
+    monkeypatch.setattr("app.auditors.base.MAX_PROMPT_BYTES", 2_000)
+    for index in range(20):
+        (tmp_path / f"file_{index}.py").write_text("x = 1\n" * 100)
+
+    rendered = render_repository(tmp_path)
+
+    assert "exceeds the size that fits in one request" in rendered
+    assert "Do not draw conclusions about files you were not shown" in rendered
+
+
+def test_a_small_repository_is_not_declared_truncated(tmp_path):
+    (tmp_path / "app.py").write_text("x = 1")
+
+    assert "exceeds the size" not in render_repository(tmp_path)
+
+
+def test_small_files_are_kept_when_the_budget_is_tight(tmp_path, monkeypatch):
+    """Large files first would eat the budget and hide dozens of small ones, and
+    small source files are where most findings are."""
+    monkeypatch.setattr("app.auditors.base.MAX_PROMPT_BYTES", 3_000)
+    (tmp_path / "huge.py").write_text("# padding\n" * 500)
+    for index in range(5):
+        (tmp_path / f"small_{index}.py").write_text(f"value = {index}")
+
+    rendered = render_repository(tmp_path)
+
+    for index in range(5):
+        assert f"small_{index}.py ---" in rendered, "small files should survive"
