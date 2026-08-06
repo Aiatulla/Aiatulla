@@ -16,6 +16,15 @@ _PRICE_PER_MILLION: dict[str, tuple[Decimal, Decimal]] = {
     # VERIFY BEFORE RELYING ON THESE FOR REAL SPEND. They are working values, not
     # quoted from a price sheet at the time of writing. A wrong price makes the
     # budget ceiling wrong in the same direction.
+    # The -latest aliases resolve to whatever the caller's tier can actually
+    # serve. Pinned names like gemini-2.5-flash appear in ListModels but return
+    # 404 on a free-tier key, so an alias is the reliable default.
+    #
+    # Priced at the higher 2.5-class rate rather than the 2.0 rate: an alias can
+    # move to a dearer model without warning, and over-estimating only stops a
+    # run early while under-estimating lets it past its ceiling.
+    "gemini-flash-latest": (Decimal("0.30"), Decimal("2.50")),
+    "gemini-flash-lite-latest": (Decimal("0.10"), Decimal("0.40")),
     "gemini-2.0-flash": (Decimal("0.10"), Decimal("0.40")),
     "gemini-2.5-flash": (Decimal("0.30"), Decimal("2.50")),
     "claude-haiku-4-5-20251001": (Decimal("1.00"), Decimal("5.00")),

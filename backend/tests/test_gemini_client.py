@@ -1,8 +1,10 @@
+import httpx
 import pytest
 
 from app.llm.protocol import Message, Tool
 from app.llm.providers.gemini import GeminiClient, GeminiError
 
+MODEL = "gemini-flash-latest"
 TOOL = Tool(
     name="report_finding",
     description="Report one audit finding",
@@ -113,3 +115,76 @@ async def test_unexpected_payload_shape_raises(mock_transport):
 
     with pytest.raises(GeminiError, match="Unexpected"):
         await client.complete([Message(role="user", content="hi")])
+
+
+async def test_a_rate_limited_call_is_retried(monkeypatch):
+    """Running three auditors at once hits per-minute limits routinely. That is
+    the normal cost of concurrency, not a failure worth surfacing."""
+    import asyncio
+
+    slept: list[float] = []
+
+    async def record_sleep(seconds):
+        slept.append(seconds)
+
+    monkeypatch.setattr(asyncio, "sleep", record_sleep)
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(
+                429,
+                json={"error": {"message": "quota exceeded", "details": [{"retryDelay": "1.2s"}]}},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [{"content": {"parts": [{"text": "ok"}]}}],
+                "usageMetadata": {"promptTokenCount": 5, "candidatesTokenCount": 2},
+            },
+        )
+
+    original_init = httpx.AsyncClient.__init__
+
+    def patched_init(self, *args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(handler)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.AsyncClient, "__init__", patched_init)
+
+    response = await GeminiClient(api_key="k", model=MODEL).complete(
+        [Message(role="user", content="hi")]
+    )
+
+    assert response.text == "ok"
+    assert calls["n"] == 2, "the call should have been retried once"
+    assert slept == [1.2], "the provider's own retryDelay should be honoured"
+
+
+async def test_a_persistent_rate_limit_gives_a_readable_error(mock_transport, monkeypatch):
+    """The raw body is kilobytes of quota metadata. A wall of JSON in front of
+    someone reading why their run failed helps nobody."""
+    import asyncio
+
+    async def no_sleep(seconds):
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    mock_transport(
+        {
+            "error": {
+                "message": "You exceeded your current quota. " + "x" * 5_000,
+                "details": [{"@type": "QuotaFailure", "violations": [{"quotaId": "a"}]}],
+            }
+        },
+        status=429,
+    )
+
+    with pytest.raises(GeminiError) as caught:
+        await GeminiClient(api_key="k", model=MODEL).complete([Message(role="user", content="hi")])
+
+    message = str(caught.value)
+    assert "You exceeded your current quota" in message
+    assert len(message) < 600, "the error must not carry the whole response body"
+    assert "QuotaFailure" not in message

@@ -24,7 +24,7 @@ from app.auditors.test_quality import TestQualityAuditor  # noqa: E402
 from app.llm.cassette import CassetteClient, CassetteMode  # noqa: E402
 from app.llm.providers.gemini import GeminiClient  # noqa: E402
 
-MODEL = "gemini-2.0-flash"
+MODEL = "gemini-flash-latest"
 CASSETTE_DIR = BACKEND_ROOT / "tests" / "cassettes"
 FIXTURE_DIR = BACKEND_ROOT / "tests" / "fixtures"
 

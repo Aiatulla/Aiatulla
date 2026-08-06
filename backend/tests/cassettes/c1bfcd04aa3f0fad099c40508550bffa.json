@@ -1,0 +1,18 @@
+{
+  "model": "gemini-flash-latest",
+  "text": null,
+  "tool_calls": [
+    {
+      "arguments": {
+        "findings": []
+      },
+      "name": "report_findings"
+    }
+  ],
+  "usage": {
+    "cost_usd": "0.0004348",
+    "input_tokens": 1341,
+    "model": "gemini-flash-latest",
+    "output_tokens": 13
+  }
+}

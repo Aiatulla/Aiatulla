@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Model access. The key is optional because the default mode replays cassettes
     # and needs no credentials, which is what lets a fresh clone run the suite
     # offline and for free. Recording is the only path that requires a real key.
-    LLM_MODEL: str = "gemini-2.0-flash"
+    LLM_MODEL: str = "gemini-flash-latest"
     # SecretStr, not str: it prints as "**********" in a repr, a log line or a
     # traceback. Settings objects end up in all three, and a key that leaks into
     # a log is as compromised as one committed to the repository.
