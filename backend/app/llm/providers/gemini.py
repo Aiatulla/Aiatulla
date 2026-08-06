@@ -8,11 +8,23 @@ from app.llm.usage import build_usage
 
 _BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
-# Three attempts, because a per-minute limit clears in about a minute and a
-# per-day limit will not clear at all. Retrying past that just delays the error.
-MAX_ATTEMPTS = 3
+# Four attempts, because a per-minute quota clears in about a minute. A per-day
+# quota will not clear at all, so retrying past this only delays the error.
+MAX_ATTEMPTS = 4
 _FALLBACK_DELAY_SECONDS = 2.0
 _MAX_ERROR_CHARS = 400
+
+# 429 is a quota, 503 is overload, 500 and 504 are transient faults. All four are
+# the provider telling us to come back, not telling us the request was wrong.
+RETRYABLE_STATUSES = frozenset(
+    {
+        httpx.codes.TOO_MANY_REQUESTS,
+        httpx.codes.INTERNAL_SERVER_ERROR,
+        httpx.codes.BAD_GATEWAY,
+        httpx.codes.SERVICE_UNAVAILABLE,
+        httpx.codes.GATEWAY_TIMEOUT,
+    }
+)
 
 # Gemini names the assistant role "model". Everything above this adapter uses the
 # provider-neutral names from protocol.py.
@@ -31,7 +43,7 @@ class GeminiClient:
     readable and makes a second provider a copy of this file.
     """
 
-    def __init__(self, api_key: str, model: str, timeout_seconds: float = 60.0) -> None:
+    def __init__(self, api_key: str, model: str, timeout_seconds: float = 180.0) -> None:
         self._model = model
         self._timeout = timeout_seconds
         # The key travels in a header, never in the query string. URLs end up in
@@ -57,11 +69,11 @@ class GeminiClient:
                 if http_response.status_code == httpx.codes.OK:
                     return self._parse(http_response.json())
 
-                # Rate limits are the normal cost of running several auditors at
-                # once, not a failure. The response says how long to wait, so
-                # honour it rather than guessing.
-                rate_limited = http_response.status_code == httpx.codes.TOO_MANY_REQUESTS
-                if rate_limited and attempt < MAX_ATTEMPTS - 1:
+                # Rate limits and provider overload are the normal cost of running
+                # several auditors at once, not failures. 503 in particular is the
+                # provider saying "temporary, try again", so not retrying it threw
+                # away a run the provider expected us to recover from.
+                if http_response.status_code in RETRYABLE_STATUSES and attempt < MAX_ATTEMPTS - 1:
                     await asyncio.sleep(_retry_delay(http_response, attempt))
                     continue
 

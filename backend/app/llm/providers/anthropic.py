@@ -28,7 +28,7 @@ class AnthropicClient:
     parent would be an abstraction over nothing.
     """
 
-    def __init__(self, api_key: str, model: str, timeout_seconds: float = 60.0) -> None:
+    def __init__(self, api_key: str, model: str, timeout_seconds: float = 180.0) -> None:
         self._model = model
         self._timeout = timeout_seconds
         # The key is a header, never a query parameter: URLs reach server logs,
