@@ -122,8 +122,15 @@ typecheck: ## Type-check both sides
 	cd frontend && npm run typecheck
 
 .PHONY: test
-test: ## Run the test suite with coverage
+test: test-backend test-frontend ## Run every test suite
+
+.PHONY: test-backend
+test-backend: ## Backend tests with coverage
 	cd backend && $(VENV)/pytest -q --cov=app
+
+.PHONY: test-frontend
+test-frontend: ## Frontend component and client tests
+	cd frontend && npm run test
 
 .PHONY: test-watch
 test-watch: ## Run only the fast tests, no coverage
