@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from app.auditors.base import AuditorError, render_repository
+from app.auditors.base import AuditorError
 from app.auditors.dead_code import DeadCodeAuditor
+from app.auditors.rendering import render_repository
 from app.llm.protocol import Response, ToolCall
 from app.llm.usage import build_usage
 from app.schemas.finding import Severity
@@ -131,7 +132,7 @@ def test_tool_caches_are_not_sent(tmp_path):
 
 
 def test_an_oversized_repository_is_truncated(tmp_path, monkeypatch):
-    monkeypatch.setattr("app.auditors.base.MAX_PROMPT_BYTES", 2_000)
+    monkeypatch.setattr("app.auditors.rendering.MAX_PROMPT_BYTES", 2_000)
     for index in range(20):
         (tmp_path / f"file_{index}.py").write_text("x = 1\n" * 100)
 
@@ -143,7 +144,7 @@ def test_an_oversized_repository_is_truncated(tmp_path, monkeypatch):
 def test_truncation_is_declared_in_the_prompt(tmp_path, monkeypatch):
     """An auditor that silently saw half a repository would report on half a
     repository while looking exactly like one that had seen all of it."""
-    monkeypatch.setattr("app.auditors.base.MAX_PROMPT_BYTES", 2_000)
+    monkeypatch.setattr("app.auditors.rendering.MAX_PROMPT_BYTES", 2_000)
     for index in range(20):
         (tmp_path / f"file_{index}.py").write_text("x = 1\n" * 100)
 
@@ -162,7 +163,7 @@ def test_a_small_repository_is_not_declared_truncated(tmp_path):
 def test_small_files_are_kept_when_the_budget_is_tight(tmp_path, monkeypatch):
     """Large files first would eat the budget and hide dozens of small ones, and
     small source files are where most findings are."""
-    monkeypatch.setattr("app.auditors.base.MAX_PROMPT_BYTES", 3_000)
+    monkeypatch.setattr("app.auditors.rendering.MAX_PROMPT_BYTES", 3_000)
     (tmp_path / "huge.py").write_text("# padding\n" * 500)
     for index in range(5):
         (tmp_path / f"small_{index}.py").write_text(f"value = {index}")

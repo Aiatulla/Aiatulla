@@ -22,10 +22,11 @@
    * Surface ladder: canvas is the page, each step lifts a level.
    * Depth comes from these steps plus a hairline border, never a drop shadow.
    *
-   * TODO(phase-6): canvas and the hairlines are documented values. surface-1
-   * through surface-4 were not published in DESIGN.md, so these are provisional
-   * steps between canvas and hairline. Confirm against Linear's real
-   * --color-bg-level-* variables before building the findings table.
+   * Known gap, not a pending task: canvas and the hairlines come from
+   * DESIGN.md, but surface-1 through surface-4 were never published there.
+   * These are interpolated steps between canvas and hairline. They read
+   * correctly and hold contrast, so they stay until someone has the real
+   * values to replace them with.
    */
   --color-canvas: #010102;
   --color-surface-1: #08090a;
