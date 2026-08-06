@@ -10,8 +10,9 @@ it twice and the second run tells you what changed.
 
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-async-009688)](https://fastapi.tiangolo.com/)
-[![Next.js 14](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
-[![Tests](https://img.shields.io/badge/tests-166%20passing-27a644)](#verification)
+[![Next.js 15](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
+[![Tests](https://img.shields.io/badge/tests-180%20passing-27a644)](#verification)
+[![Coverage](https://img.shields.io/badge/coverage-95%25-27a644)](#verification)
 [![mypy strict](https://img.shields.io/badge/mypy-strict-27a644)](#verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -33,8 +34,9 @@ it twice and the second run tells you what changed.
 - [Known limitations](#known-limitations)
 - [License](#license)
 
-**Further reading:** [docs/EVALUATION.md](docs/EVALUATION.md) ·
-[docs/SECURITY.md](docs/SECURITY.md) · [AGENTS.md](AGENTS.md)
+**Further reading:** [ROADMAP.md](ROADMAP.md) ·
+[docs/EVALUATION.md](docs/EVALUATION.md) · [SECURITY.md](SECURITY.md) ·
+[CONTRIBUTING.md](CONTRIBUTING.md) · [AGENTS.md](AGENTS.md)
 
 ---
 
@@ -108,7 +110,7 @@ take real work are the ones around the model:
 ```mermaid
 flowchart TB
     subgraph client["Browser"]
-        UI["Next.js 14<br/>TypeScript, Tailwind"]
+        UI["Next.js 15<br/>TypeScript, Tailwind"]
     end
 
     subgraph api["FastAPI"]
@@ -248,22 +250,29 @@ stateDiagram-v2
 [OpenAI](https://platform.openai.com/api-keys).
 
 ```bash
-# 1. Database
-docker compose up -d
+make install    # dependencies, database, migrations
+make dev        # backend and frontend with hot reload
+```
 
-# 2. Backend
-cd backend
-uv sync --extra dev            # or: python -m venv .venv && pip install -e ".[dev]"
-.venv/bin/alembic upgrade head
+`make` on its own lists every target. Without make:
+
+```bash
+docker compose up -d                                    # database
+cd backend && uv sync --extra dev && .venv/bin/alembic upgrade head
 .venv/bin/uvicorn app.main:app --reload --port 8001
-
-# 3. Frontend
-cd ../frontend
-npm install
-npm run dev
+cd ../frontend && npm install && npm run dev
 ```
 
 Open <http://localhost:3000>, paste your key, submit a repository.
+
+**Or run the whole stack in containers:**
+
+```bash
+make up
+```
+
+Migrations run on boot, the backend runs as a non-root user, and cloned
+repositories land on a `tmpfs` that is discarded with the container.
 
 You do **not** need a key to run the tests. They replay recorded cassettes:
 
@@ -413,7 +422,7 @@ and a diff that cries wolf every run is one nobody reads.
 <summary><b>The repository URL is untrusted input</b></summary>
 
 Every limit in `cloner.py` exists because someone can submit any URL. Full threat
-model in [docs/SECURITY.md](docs/SECURITY.md):
+model in [SECURITY.md](SECURITY.md):
 
 - **https only** — `file://` would read the server's disk, `ssh://` would use the
   server's keys, `git://` skips host verification
@@ -480,18 +489,20 @@ frontend/
 CI runs exactly these commands.
 
 ```bash
-# backend
-cd backend
-.venv/bin/ruff check .
-.venv/bin/ruff format --check .
-.venv/bin/mypy app            # strict
-.venv/bin/pytest -q           # 166 passed
+make check      # lint, typecheck and test, both sides
+make audit      # known vulnerabilities in dependencies
+```
 
-# frontend
-cd frontend
-npm run lint
-npm run typecheck
-npm run build
+Individually:
+
+```bash
+cd backend
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
+.venv/bin/mypy app            # strict
+.venv/bin/pytest -q --cov=app # 180 passed, 95% covered
+
+cd ../frontend
+npm run lint && npm run typecheck && npm run build
 ```
 
 Tests open no sockets and need no database: they call the app in process through
@@ -509,10 +520,11 @@ GEMINI_API_KEY=... .venv/bin/python scripts/record_cassettes.py
 
 Stated plainly, because a tool that measures honesty should be honest.
 
-- **No rate limiting or auth.** Anyone who can reach the API can start runs. Fine
-  locally; needed before any public deployment. See
-  [docs/SECURITY.md](docs/SECURITY.md) for the full list of what is and is not
-  defended.
+- **No authentication.** Runs are rate limited per caller, but there are no
+  accounts: anyone with a run id can read it. See [SECURITY.md](SECURITY.md) for
+  the full list of what is and is not defended.
+- **The rate limiter is per process.** N workers allow N times the limit. It moves
+  to shared state when the job queue arrives; see [ROADMAP.md](ROADMAP.md).
 - **Prices are hardcoded and will drift.** `usage.py` carries a price table that
   is an estimate, not a quote. A wrong price makes the ceiling wrong by the same
   factor.

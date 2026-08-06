@@ -44,7 +44,14 @@ jobs:
       # No database service: these tests call the app in-process and never open a
       # socket. Postgres joins this job in Phase 2, when there is a schema to test.
       - name: Test
-        run: .venv/bin/pytest -q
+        run: .venv/bin/pytest -q --cov=app --cov-report=term-missing
+
+      # Advisories change without the code changing, so this runs on every build
+      # rather than only when a dependency is edited.
+      - name: Audit dependencies
+        # --skip-editable: this project itself is installed editable and is not on
+        # PyPI, so auditing it is neither possible nor meaningful.
+        run: uv pip install pip-audit && .venv/bin/pip-audit --skip-editable
 
   frontend:
     runs-on: ubuntu-latest
@@ -62,6 +69,16 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # Fails the build on critical only. Two high advisories are currently open
+      # against transitive dependencies of Next: sharp/libvips (image processing)
+      # and postcss sourceMappingURL (build-time CSS). This app serves no images
+      # through next/image and processes only its own stylesheet, so neither is
+      # reachable at runtime. Both clear on the Next 16 upgrade, which also drops
+      # `next lint` and needs an ESLint 9 flat config migration. Reassess when
+      # that work is scheduled rather than taking it for an unreachable finding.
+      - name: Audit dependencies
+        run: npm audit --omit=dev --audit-level=critical
 
       - name: Lint
         run: npm run lint

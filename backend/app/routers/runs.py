@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.byok import require_api_key
 from app.cloner import CloneError, validate_repo_url
 from app.database import AsyncSessionLocal, get_db
+from app.rate_limit import enforce_rate_limit
 from app.repositories.runs import RunRepository
 from app.schemas.run import CreateRunRequest, RunResponse, RunSummary
 from app.services.run_service import default_model_for, execute_run, repository_slug
@@ -15,7 +16,14 @@ from app.services.run_service import default_model_for, execute_run, repository_
 router = APIRouter(prefix="/runs", tags=["runs"])
 
 
-@router.post("", response_model=RunResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "",
+    response_model=RunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    # Only this endpoint is limited. Reading a run is cheap; starting one clones a
+    # repository and occupies a worker for a minute.
+    dependencies=[Depends(enforce_rate_limit)],
+)
 async def create_run(
     body: CreateRunRequest,
     background_tasks: BackgroundTasks,

@@ -130,3 +130,28 @@ def test_urls_for_the_same_repository_share_a_slug(url, expected):
     """Phase 5 diffs a run against the previous run of the same repository.
     Without this, one repository written three ways would never be compared."""
     assert repository_slug(url) == expected
+
+
+async def test_a_caller_starting_too_many_runs_is_throttled(client):
+    """Starting a run clones a repository and occupies a worker for a minute.
+    Reading one is cheap, so only this endpoint is limited."""
+    from app.rate_limit import MAX_RUNS_PER_WINDOW
+
+    for _ in range(MAX_RUNS_PER_WINDOW):
+        accepted = await client.post(RUNS, json={"repository_url": REPO}, headers=HEADERS)
+        assert accepted.status_code == 202
+
+    throttled = await client.post(RUNS, json={"repository_url": REPO}, headers=HEADERS)
+
+    assert throttled.status_code == 429
+    assert int(throttled.headers["Retry-After"]) > 0
+
+
+async def test_reading_a_run_is_never_throttled(client):
+    """A throttle on reads would break the polling fallback when a websocket
+    cannot connect."""
+    created = await client.post(RUNS, json={"repository_url": REPO}, headers=HEADERS)
+    run_id = created.json()["id"]
+
+    for _ in range(30):
+        assert (await client.get(f"{RUNS}/{run_id}")).status_code == 200

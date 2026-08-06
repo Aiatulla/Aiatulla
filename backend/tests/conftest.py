@@ -6,12 +6,26 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.database import get_db
 from app.main import app
 from app.models.base import Base
+from app.rate_limit import reset_rate_limits
 
 # SQLite in memory, not Postgres. The models use SQLAlchemy's dialect-neutral
 # types, so the schema is the same one Alembic creates, and CI needs no database
 # service. Anything genuinely Postgres-specific would have to be tested against
 # Postgres instead.
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+
+@pytest.fixture(autouse=True)
+def clean_rate_limits():
+    """Start every test with an empty rate limiter.
+
+    It is module-level state shared by the process, so without this the suite
+    trips its own limit part way through and later tests fail for a reason that
+    has nothing to do with what they are testing.
+    """
+    reset_rate_limits()
+    yield
+    reset_rate_limits()
 
 
 @pytest.fixture

@@ -61,9 +61,28 @@ asyncio_mode = "auto"
 #   them would run deliberately broken code.
 addopts = "-ra --ignore=tests/fixtures"
 
+[tool.coverage.run]
+source = ["app"]
+# Fixture repositories are input data for the auditors, not code under test.
+omit = ["tests/fixtures/*"]
+
+[tool.coverage.report]
+# 90, not the 95 currently measured. A threshold set at exactly today's number
+# fails on the next honest refactor and trains people to lower it. This one only
+# fires when coverage genuinely drops.
+fail_under = 90
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    # Protocol bodies are declarations, never executed.
+    "\\.\\.\\.",
+]
+
 [dependency-groups]
 dev = [
     "aiosqlite>=0.22.1",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.ruff.lint.per-file-ignores]
