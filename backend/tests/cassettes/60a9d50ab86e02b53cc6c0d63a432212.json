@@ -7,11 +7,11 @@
         "findings": [
           {
             "category": "unused_module",
-            "evidence": "legacy_export.py is present in the repository but is never imported or referenced by any active module.",
+            "evidence": "import csv\n\nfrom storage import read_notes",
             "file_path": "legacy_export.py",
             "line": 1,
             "severity": "low",
-            "summary": "The legacy_export.py module is unused and never imported."
+            "summary": "The module legacy_export.py is never imported or executed in the project."
           },
           {
             "category": "commented_out_code",
@@ -19,7 +19,7 @@
             "file_path": "formatting.py",
             "line": 5,
             "severity": "low",
-            "summary": "Disabled function implementations strikethrough and underline are left as commented-out code."
+            "summary": "Commented-out Python code for strikethrough and underline functions remains in formatting.py."
           }
         ]
       },
@@ -27,9 +27,9 @@
     }
   ],
   "usage": {
-    "cost_usd": "0.0008941",
+    "cost_usd": "0.0008791",
     "input_tokens": 1347,
     "model": "gemini-flash-latest",
-    "output_tokens": 196
+    "output_tokens": 190
   }
 }

@@ -10,6 +10,11 @@ from app.llm.protocol import LLMClient
 from app.llm.usage import Usage
 from app.schemas.finding import Finding
 
+# Gap between auditors starting. Small enough that a run still finishes in about
+# the time one auditor takes, large enough that a provider sees three requests
+# rather than one spike.
+STAGGER_SECONDS = 2.0
+
 
 class AuditorStatus(StrEnum):
     """How one auditor ended."""
@@ -69,7 +74,12 @@ async def run_audit(
     """
     guard = BudgetGuard(client, model=model, max_usd=max_usd)
 
-    outcomes = await asyncio.gather(*(_run_one(guard, repository, auditor) for auditor in auditors))
+    outcomes = await asyncio.gather(
+        *(
+            _run_one(guard, repository, auditor, delay=index * STAGGER_SECONDS)
+            for index, auditor in enumerate(auditors)
+        )
+    )
 
     return RunResult(
         outcomes=tuple(outcomes),
@@ -78,13 +88,25 @@ async def run_audit(
     )
 
 
-async def _run_one(guard: BudgetGuard, repository: Path, auditor: Auditor) -> AuditorOutcome:
+async def _run_one(
+    guard: BudgetGuard,
+    repository: Path,
+    auditor: Auditor,
+    delay: float = 0.0,
+) -> AuditorOutcome:
     """Run one auditor, converting any failure into a recorded outcome.
 
     Exceptions are caught here rather than by gather(return_exceptions=True) so
     that the reason survives as a readable string instead of an exception object
     the caller has to unpack.
+
+    The delay spreads the requests out. Sending all of them in the same instant
+    turns three individually acceptable prompts into one burst that trips a
+    per-minute quota, which is how a real run against a large repository failed.
     """
+    if delay:
+        await asyncio.sleep(delay)
+
     try:
         findings = await auditor.run(guard, repository)
     except BudgetExceededError as exc:
