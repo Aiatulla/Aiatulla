@@ -1,0 +1,54 @@
+name: Auditor missed something, or reported something wrong
+description: A finding that should not exist, or a defect that should have been found
+labels: [auditor-quality]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most useful kind of report. A concrete example of a miss or a
+        false positive can usually be turned into a fixture, and a fixture stops
+        the same mistake returning.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Which is it
+      options:
+        - False positive - it reported something that is not a real problem
+        - Missed - it did not report something it should have
+    validations:
+      required: true
+
+  - type: dropdown
+    id: auditor
+    attributes:
+      label: Auditor
+      options: [dead_code, security, test_quality]
+    validations:
+      required: true
+
+  - type: textarea
+    id: code
+    attributes:
+      label: The code
+      description: The smallest snippet that shows it. This becomes the fixture.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: reasoning
+    attributes:
+      label: Why the auditor is wrong
+      description: >
+        Be specific. "Reachable via the CLI entry point" is actionable;
+        "this is fine" is not.
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model used
+      description: Detection quality varies by model, so this matters.
+      placeholder: gemini-flash-latest
