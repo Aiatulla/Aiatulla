@@ -12,6 +12,8 @@ secure/
 *.context.tmp
 
 # Python
+.coverage
+htmlcov/
 __pycache__/
 *.pyc
 .venv/
