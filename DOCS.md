@@ -132,7 +132,7 @@ They open no sockets and need no database, which is why CI runs them without a P
 
 ## Build Order
 
-See `secure/ROADMAP.md` for the eight phases, the files each produces, and the condition that proves each is finished.
+See [ROADMAP.md](ROADMAP.md) for where the project is going and why. The phases below are how it was built.
 
 | Phase | State | Note |
 | --- | --- | --- |
@@ -158,4 +158,4 @@ cd backend
 GEMINI_API_KEY=... .venv/bin/python scripts/record_cassettes.py
 ```
 
-Public planning lives in `ROADMAP.md`; `secure/ROADMAP.md` is the private build log.
+Planning lives in [ROADMAP.md](ROADMAP.md).

@@ -1,5 +1,5 @@
 # Local development infrastructure.
-# Postgres only - no Redis until concurrent runs prove they need it (see secure/ROADMAP.md, Phase 5).
+# Postgres only - no Redis until concurrent runs prove they need it. See ROADMAP.md, Stage 1.
 services:
   postgres:
     image: postgres:16-alpine
