@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 
 import { ChangeBadge, SeverityBadge } from "@/components/Badge";
 import { getRepositoryHistory, getRunDiff } from "@/lib/api";
@@ -13,9 +13,10 @@ import type { RunDiff, RunSummary } from "@/types";
  * A catch-all route because a slug contains slashes, as in
  * github.com/psf/requests.
  */
-// A plain object on Next 14, a promise on Next 15. See the note in runs/[id].
-export default function RepositoryPage({ params }: { params: { slug: string[] } }) {
-  const repositorySlug = params.slug.join("/");
+// A promise on Next 15. See the note in runs/[id].
+export default function RepositoryPage({ params }: { params: Promise<{ slug: string[] }> }) {
+  const { slug } = use(params);
+  const repositorySlug = slug.join("/");
 
   const [runs, setRuns] = useState<RunSummary[] | null>(null);
   const [diff, setDiff] = useState<RunDiff | null>(null);

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { use } from "react";
 
 import { FindingsTable } from "@/components/FindingsTable";
 import { RunStats } from "@/components/RunStats";
@@ -14,12 +15,12 @@ const STATUS_COLOR: Record<RunStatus, string> = {
   failed: "text-severity-critical",
 };
 
-// Next 14 hands params over as a plain object. Next 15 makes it a promise to be
-// unwrapped with use(). Typing it as a promise here compiled and passed
-// typecheck, then failed on every request with "An unsupported type was passed
-// to use()", because the annotation was simply untrue.
-export default function RunPage({ params }: { params: { id: string } }) {
-  const { run, error } = useRunProgress(params.id);
+// Next 15 hands params over as a promise, unwrapped with use(). Next 14 passed a
+// plain object, and getting this wrong is invisible to typecheck: the annotation
+// is simply believed, and every request then fails at runtime.
+export default function RunPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const { run, error } = useRunProgress(id);
 
   if (error !== null) {
     return <Shell>{<p className="text-body text-severity-critical">{error}</p>}</Shell>;
