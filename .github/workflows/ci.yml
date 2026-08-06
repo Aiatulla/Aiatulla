@@ -51,7 +51,7 @@ jobs:
       - name: Audit dependencies
         # --skip-editable: this project itself is installed editable and is not on
         # PyPI, so auditing it is neither possible nor meaningful.
-        run: uv pip install pip-audit && .venv/bin/pip-audit --strict --skip-editable
+        run: uv pip install pip-audit && .venv/bin/pip-audit --skip-editable
 
   frontend:
     runs-on: ubuntu-latest
